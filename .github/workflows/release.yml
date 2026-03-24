@@ -1,0 +1,94 @@
+# release.yml
+# Full release validation matrix — all device pairs, all network conditions, RF chamber.
+# Triggered manually before a release build ships.
+# Expected runtime: ~4 hours for the full matrix.
+
+name: Release Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_version:
+        description: "iOS build version under test (e.g. 18.4-22E240)"
+        required: true
+      rf_chamber:
+        description: "Run in RF chamber (true/false)"
+        required: false
+        default: "true"
+
+jobs:
+  release-matrix:
+    name: "${{ matrix.protocol }} | ${{ matrix.network_profile }} | ${{ matrix.airdrop_mode }}"
+    runs-on: [self-hosted, apple-lab, rf-chamber]
+    timeout-minutes: 240   # 4 hours max
+
+    strategy:
+      fail-fast: false
+      matrix:
+        protocol: [airdrop, handoff, clipboard, shareplay, namedrop]
+        network_profile: [wifi_good, wifi_congested, lte, poor_network]
+        airdrop_mode: [contacts_only, everyone]
+        exclude:
+          # airdrop_mode only applies to airdrop
+          - protocol: handoff
+            airdrop_mode: everyone
+          - protocol: clipboard
+            airdrop_mode: everyone
+          - protocol: shareplay
+            airdrop_mode: everyone
+          - protocol: namedrop
+            airdrop_mode: everyone
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r apple_qe_portfolio_final/code/netqual/requirements.txt
+
+      - name: Preflight check
+        working-directory: apple_qe_portfolio_final/code/netqual
+        run: python netqual.py opendrop preflight
+
+      - name: Run release tests — ${{ matrix.protocol }}
+        working-directory: apple_qe_portfolio_final/code/netqual
+        env:
+          NETQUAL_MODE: device
+          NETQUAL_NETWORK_PROFILE: ${{ matrix.network_profile }}
+          NETQUAL_AIRDROP_MODE: ${{ matrix.airdrop_mode }}
+          NETQUAL_RF_CHAMBER: ${{ github.event.inputs.rf_chamber }}
+          BUILD_VERSION: ${{ github.event.inputs.build_version }}
+        run: |
+          pytest test_device_${{ matrix.protocol }}.py \
+            -v --tb=long \
+            --junit-xml=test-results/release-${{ matrix.protocol }}-${{ matrix.network_profile }}.xml
+
+      - name: Capture packets
+        if: always()
+        working-directory: apple_qe_portfolio_final/code/netqual
+        run: |
+          python netqual.py pcap /tmp/netqual_captures/capture.pcap \
+            > test-results/pcap-${{ matrix.protocol }}-${{ matrix.network_profile }}.json || true
+
+      - name: Collect sysdiagnose on failure
+        if: failure()
+        run: |
+          python apple_qe_portfolio_final/code/netqual/netqual.py log \
+            /tmp/netqual_logs/sysdiagnose.log --json \
+            > test-results/sysdiagnose-${{ matrix.protocol }}.json || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.protocol }}-${{ matrix.network_profile }}-${{ matrix.airdrop_mode }}
+          path: |
+            apple_qe_portfolio_final/code/netqual/test-results/
+            /tmp/netqual_logs/
+            /tmp/netqual_captures/
+          retention-days: 90

@@ -1,0 +1,60 @@
+# smoke.yml
+# Quick smoke validation — critical path only.
+# Run this after a build lands in the lab to confirm basic functionality before
+# kicking off the full nightly or release matrix.
+# Expected runtime: ~5 minutes.
+
+name: Smoke Tests
+
+on:
+  workflow_dispatch:   # Manual trigger from GitHub UI
+
+jobs:
+  smoke:
+    name: Smoke — AirDrop + Handoff critical path
+    runs-on: [self-hosted, apple-lab]
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r apple_qe_portfolio_final/code/netqual/requirements.txt
+
+      - name: Preflight check
+        working-directory: apple_qe_portfolio_final/code/netqual
+        run: python netqual.py opendrop preflight
+
+      - name: AirDrop smoke — send photo iPhone → Mac
+        working-directory: apple_qe_portfolio_final/code/netqual
+        env:
+          NETQUAL_MODE: device
+          NETQUAL_NETWORK_PROFILE: wifi_good
+        run: |
+          pytest "test_device_airdrop.py::test_send_photo_iphone_to_mac" \
+            -v --tb=short \
+            --junit-xml=test-results/smoke-airdrop.xml
+
+      - name: Handoff smoke — Safari handoff
+        working-directory: apple_qe_portfolio_final/code/netqual
+        env:
+          NETQUAL_MODE: device
+          NETQUAL_NETWORK_PROFILE: wifi_good
+        run: |
+          pytest "test_device_handoff.py::test_safari_handoff" \
+            -v --tb=short \
+            --junit-xml=test-results/smoke-handoff.xml
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-results-${{ github.run_number }}
+          path: apple_qe_portfolio_final/code/netqual/test-results/
+          retention-days: 14

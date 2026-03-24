@@ -1,0 +1,73 @@
+# ci.yml
+# Runs on every push and pull request.
+# No hardware required — simulation and mocked tests only.
+
+name: CI
+
+on:
+  push:
+    branches: ["main", "release/**", "feature/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  netqual:
+    name: NetQual Tests (60 tests — no hardware)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r apple_qe_portfolio_final/code/netqual/requirements.txt
+
+      - name: Run NetQual tests
+        working-directory: apple_qe_portfolio_final/code/netqual
+        run: |
+          pytest test_log_parser.py test_pcap_parser.py test_opendrop.py \
+            -v --tb=short \
+            --junit-xml=../../test-results/netqual.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: netqual-results
+          path: apple_qe_portfolio_final/test-results/
+
+  pytest-framework:
+    name: Enterprise pytest (offline tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r python_tests/requirements.txt
+
+      - name: Run offline tests
+        working-directory: python_tests
+        run: |
+          pytest -m "not network" -v --tb=short \
+            --junit-xml=../test-results/pytest-offline.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: test-results/

@@ -1,0 +1,67 @@
+# nightly.yml
+# Runs nightly against real devices in the lab.
+# Requires a self-hosted runner with Apple devices attached
+# and the lab environment set up (libimobiledevice, SSH to Mac).
+
+name: Nightly Device Tests
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # 2 AM UTC every night
+  workflow_dispatch:       # Allow manual trigger from GitHub UI
+
+jobs:
+  device-tests:
+    name: Device Tests — ${{ matrix.protocol }}
+    runs-on: [self-hosted, apple-lab]   # Lab runner with real devices
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false    # Run all protocols even if one fails
+      matrix:
+        protocol: [airdrop, handoff, clipboard]
+        network_profile: [wifi_good]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r apple_qe_portfolio_final/code/netqual/requirements.txt
+
+      - name: Preflight check
+        working-directory: apple_qe_portfolio_final/code/netqual
+        run: python netqual.py opendrop preflight
+
+      - name: Run device tests — ${{ matrix.protocol }}
+        working-directory: apple_qe_portfolio_final/code/netqual
+        env:
+          NETQUAL_NETWORK_PROFILE: ${{ matrix.network_profile }}
+          NETQUAL_MODE: device
+        run: |
+          pytest test_device_${{ matrix.protocol }}.py \
+            -v --tb=long \
+            --junit-xml=test-results/nightly-${{ matrix.protocol }}.xml
+
+      - name: Collect sysdiagnose on failure
+        if: failure()
+        run: |
+          python apple_qe_portfolio_final/code/netqual/netqual.py log \
+            /tmp/netqual_logs/sysdiagnose.log --json \
+            > test-results/sysdiagnose-${{ matrix.protocol }}.json || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-${{ matrix.protocol }}-${{ github.run_number }}
+          path: |
+            apple_qe_portfolio_final/code/netqual/test-results/
+            /tmp/netqual_logs/
+            /tmp/netqual_captures/
+          retention-days: 30
