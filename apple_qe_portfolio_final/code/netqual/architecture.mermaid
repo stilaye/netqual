@@ -1,0 +1,87 @@
+graph TB
+    subgraph CLI["netqual.py — CLI Entry Point"]
+        CMD_LOG["netqual log"]
+        CMD_PCAP["netqual pcap"]
+        CMD_SIM["netqual simulate"]
+        CMD_OD["netqual opendrop"]
+        CMD_TEST["netqual test"]
+    end
+
+    subgraph INPUTS["Input Sources"]
+        LOG_FILE["📄 Text Logs\n(.log files)\nsysdiagnose-style"]
+        PCAP_FILE["📦 Packet Captures\n(.pcap / .logdump)\ntcpdump / btsnoop"]
+        SIM_INPUT["🔧 Simulated\nProtocol Sessions"]
+        REAL_DEV["📱 Real Devices\n(via OpenDrop CLI)\nmacOS + AWDL required"]
+    end
+
+    subgraph BASE["Shared Foundation"]
+        PB["protocol_base.py\n─────────────\nPlugin Architecture:\n• ProtocolSimulator (ABC)\n• @register_protocol\n• PROTOCOL_REGISTRY\n─────────────\nShared Helpers:\n• BLEHelper\n• MDNSHelper\n• SessionLog\n─────────────\nConfig Loader:\n• netqual_config.yaml"]
+    end
+
+    subgraph MODULES["Analysis & Simulation Modules"]
+        LP["log_parser.py\n─────────────\n4-Level Analysis:\n1. Parse & Structure\n2. Categorize & Count\n3. Pattern Detection\n4. Summary Report\n─────────────\n10 Known Patterns:\n• DNS timeout (P1)\n• TLS cert failure (P0)\n• TLS downgrade (P0)\n• BLE interval drift (P2)\n• AWDL timeout (P1)\n• SharePlay drift (P2)\n• Slow HTTP (P2)\n• Handshake abort (P0)\n• mDNS no response (P1)\n• NFC error (P1)"]
+
+        PP["pcap_parser.py\n─────────────\n7 tshark Analyses:\n• TLS handshakes\n• DNS queries\n• mDNS/Bonjour\n• BLE advertisements\n• TCP retransmissions\n• HTTP/2 streams\n• Traffic stats\n─────────────\n5 Issue Patterns:\n• TLS < 1.2 (P0)\n• DNS NXDOMAIN (P1)\n• Slow DNS (P2)\n• No Apple services (P1)\n• High retransmit (P1)"]
+
+        AS["airdrop_simulator.py\n─────────────\nInherits: ProtocolSimulator\nRegistered: @register_protocol\n─────────────\nProtocol Simulation:\n• BLE Advertisement\n• mDNS Discovery\n• Contact Resolution\n• AWDL Channel Setup\n• TLS 1.3 Handshake\n• File Transfer\n─────────────\nScenarios:\n• discovery\n• transfer\n• namedrop\n• failure"]
+
+        HS["handoff_simulator.py\n─────────────\nInherits: ProtocolSimulator\nRegistered: @register_protocol\n─────────────\nProtocol Simulation:\n• BLE Advertisement\n• companion-link mDNS\n• Payload size check\n• BLE path (<4KB)\n• Continuation Stream\n• iCloud KV Sync"]
+
+        OD["opendrop_wrapper.py\n─────────────\nReal AirDrop via CLI:\n• preflight_check()\n• discover(timeout)\n• send_file(path, target)\n• receive(output_dir)\n─────────────\nTest Integration:\n• @requires_opendrop\n  auto-skip decorator\n• OpenDropLog → log_parser\n─────────────\nRequires:\n• pip install opendrop\n• macOS + awdl0"]
+    end
+
+    subgraph TESTING["Test Suite + Reporting"]
+        TLP["test_log_parser.py\n17 tests"]
+        TPP["test_pcap_parser.py\n12 tests"]
+        TOD["test_opendrop.py\n31 tests\n─────────────\nTier 1 (CI/mocked):\n• Preflight logic\n• Log format\n• Data models\n• Error handling\n• Mocked discover/send/receive\n─────────────\nTier 2 (real hardware):\n• @requires_opendrop\n• Auto-skip if not available"]
+        ALLURE["Allure Report\n─────────────\nFeatures:\n• Log Analysis\n• Packet Analysis\n• Protocol Simulation\n• OpenDrop Integration\n• Service Discovery\n• Protocol Validation\n─────────────\nSeverity Levels:\n🔴 Blocker\n🟠 Critical\n🟡 Normal\n⚪ Minor"]
+    end
+
+    subgraph APPLE["Apple Applied Networking Features"]
+        AD["AirDrop\nBLE + AWDL + TLS"]
+        HO["Handoff\nBLE + iCloud + NSUserActivity"]
+        SP["SharePlay\nGroupActivities + FaceTime"]
+        UC["Universal Clipboard\nBLE + AWDL + Handoff"]
+        ND["NameDrop\nNFC + BLE"]
+    end
+
+    %% CLI → Modules
+    CMD_LOG  --> LP
+    CMD_PCAP --> PP
+    CMD_SIM  --> AS
+    CMD_OD   --> OD
+    CMD_TEST --> TLP & TPP & TOD
+
+    %% Inputs → Modules
+    LOG_FILE   --> LP
+    PCAP_FILE  --> PP
+    SIM_INPUT  --> AS & HS
+    REAL_DEV   --> OD
+
+    %% Simulators share base
+    PB --> AS
+    PB --> HS
+
+    %% Simulator output feeds log parser
+    AS -->|"generates\nparseable logs"| LP
+    HS -->|"generates\nparseable logs"| LP
+    OD -->|"OpenDropLog\n→ log_parser"| LP
+
+    %% Tests → Reporting
+    TLP --> ALLURE
+    TPP --> ALLURE
+    TOD --> ALLURE
+
+    %% Modules → Apple features
+    LP  -.->|"validates protocols for"| APPLE
+    PP  -.->|"analyzes packets for"| APPLE
+    AS  -.->|"simulates offline"| AD & ND
+    HS  -.->|"simulates offline"| HO
+    OD  -.->|"real over-the-air"| AD
+
+    style CLI    fill:#0071E3,color:#fff,stroke:#005BB5
+    style BASE   fill:#6E6E73,color:#fff,stroke:#48484A
+    style MODULES fill:#F5F5F7,stroke:#D1D1D6
+    style TESTING fill:#34C759,color:#fff,stroke:#248A3D
+    style INPUTS fill:#FF9500,color:#fff,stroke:#C77C00
+    style APPLE  fill:#1D1D1F,color:#fff,stroke:#000

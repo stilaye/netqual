@@ -1,0 +1,23 @@
+2026-03-20T10:00:01.123 INFO  [NetworkProcess] URLSession started: GET https://apple.com
+2026-03-20T10:00:01.250 DEBUG [DNS]            Resolving apple.com via system resolver
+2026-03-20T10:00:01.280 INFO  [DNS]            Resolved apple.com -> 17.253.144.10 (30ms)
+2026-03-20T10:00:01.456 INFO  [TLS]            Handshake started: TLSv1.3 with apple.com:443
+2026-03-20T10:00:01.612 INFO  [TLS]            Handshake complete: TLS_AES_256_GCM_SHA384 (156ms)
+2026-03-20T10:00:01.800 INFO  [HTTP]           Response 200 OK: https://apple.com (188ms)
+2026-03-20T10:00:02.001 ERROR [DNS]            Resolution failed: timeout after 5000ms for api.push.apple.com
+2026-03-20T10:00:02.100 INFO  [mDNS]           Query sent: _airdrop._tcp.local (PTR)
+2026-03-20T10:00:02.250 INFO  [mDNS]           Response received: 2 peers found on local network
+2026-03-20T10:00:02.500 WARN  [BLE]            Advertisement interval out of range: 120ms (expected 20-100ms)
+2026-03-20T10:00:02.700 INFO  [BLE]            Scanning for Apple devices: found 3 advertisements
+2026-03-20T10:00:03.000 ERROR [AWDL]           Peer connection failed: timeout waiting for channel negotiation
+2026-03-20T10:00:03.200 INFO  [AirDrop]        Discovery complete: matched 1 contact (truncated hash: 0xAB12)
+2026-03-20T10:00:03.500 INFO  [Handoff]        NSUserActivity registered: com.apple.safari.browsing (256 bytes)
+2026-03-20T10:00:03.700 INFO  [NetworkProcess] URLSession started: GET https://icloud.com/api/sync
+2026-03-20T10:00:04.000 ERROR [TLS]            Certificate validation failed: self-signed cert in chain for 192.168.1.50
+2026-03-20T10:00:04.200 WARN  [HTTP]           Response slow: 3200ms for GET https://icloud.com/api/sync
+2026-03-20T10:00:04.500 INFO  [SharePlay]      Session started: 3 participants, media_id=movie-4521
+2026-03-20T10:00:05.000 ERROR [SharePlay]      Sync drift detected: 650ms between participants (threshold: 500ms)
+2026-03-20T10:00:05.200 INFO  [mDNS]           Query sent: _companion-link._tcp.local (PTR)
+2026-03-20T10:00:05.400 INFO  [mDNS]           Response received: 1 peer found (MacBook-Pro.local)
+2026-03-20T10:00:05.600 INFO  [Handoff]        Activity transferred to MacBook-Pro.local (com.apple.safari.browsing)
+2026-03-20T10:00:06.000 INFO  [NetworkProcess] All sessions complete. 4 requests, 2 errors, 2 warnings.

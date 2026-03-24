@@ -1,0 +1,63 @@
+# ============================================================
+# Core Testing Framework
+# ============================================================
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-html>=3.2.0
+pytest-xdist>=3.3.0           # Parallel test execution
+pytest-timeout>=2.1.0          # Test timeouts
+pytest-mock>=3.11.0            # Mocking utilities
+pytest-asyncio>=0.21.0         # Async test support
+pytest-rerunfailures>=12.0     # Retry flaky tests
+
+# ============================================================
+# Network Testing
+# ============================================================
+httpx>=0.24.0
+httpx[http2]>=0.24.0          # HTTP/2 support
+requests>=2.31.0
+urllib3>=2.0.0
+
+# ============================================================
+# SSL/TLS & Security
+# ============================================================
+certifi>=2023.7.0
+cryptography>=41.0.0
+pyOpenSSL>=23.2.0
+
+# ============================================================
+# Test Data Generation
+# ============================================================
+faker>=19.0.0                  # Realistic test data
+factory-boy>=3.3.0            # Test fixtures
+hypothesis>=6.82.0            # Property-based testing
+
+# ============================================================
+# Reporting & Documentation
+# ============================================================
+allure-pytest>=2.13.0         # Advanced reporting
+pytest-json-report>=1.5.0     # JSON reports
+pytest-metadata>=3.0.0        # Test metadata
+
+# ============================================================
+# Code Quality
+# ============================================================
+pytest-pylint>=0.19.0
+pytest-flake8>=1.1.0
+black>=23.7.0                 # Code formatting
+isort>=5.12.0                 # Import sorting
+
+# ============================================================
+# Utilities
+# ============================================================
+pyyaml>=6.0                   # YAML configuration
+python-dotenv>=1.0.0          # Environment variables
+colorlog>=6.7.0               # Colored logging
+
+# ============================================================
+# Optional: Advanced Features
+# ============================================================
+# pytest-bdd>=6.1.0           # Behavior-driven development
+# pytest-benchmark>=4.0.0     # Performance benchmarking
+# locust>=2.15.0              # Load testing
+# selenium>=4.11.0            # Browser automation (if needed)

@@ -1,0 +1,583 @@
+# netqual_config.yaml
+# =====================
+# Central configuration for NetQual — Applied Networking Quality Validator
+# Edit thresholds, add patterns, enable/disable protocols without touching code.
+
+# ------------------------------------------------------------
+# General
+# ------------------------------------------------------------
+general:
+  tool_name: "NetQual"
+  version: "2.0.0"
+  author: "Swapnil Tilaye"
+  log_level: "INFO"   # DEBUG, INFO, WARN, ERROR
+  mode: "simulation"   # simulation | device | hybrid
+
+# ------------------------------------------------------------
+# Test Execution Mode
+# simulation: All tests run offline with simulated protocols
+# device: Tests run against real Apple devices (requires device_inventory)
+# hybrid: Simulation for CI + device tests when hardware available
+# ------------------------------------------------------------
+
+# ------------------------------------------------------------
+# Device Inventory
+# Define your test rack: DUT (Device Under Test) + reference devices.
+# Same config works for lab, RF chamber, and desk testing.
+# ------------------------------------------------------------
+device_inventory:
+  # DUT — the device being tested (runs the build under test)
+  dut:
+    - id: "dut-iphone-01"
+      name: "iPhone 16 Pro (DUT)"
+      type: "iPhone"
+      model: "iPhone16,2"
+      os_version: "18.4"    # Build under test
+      udid: "00008030-001A2D3E4F50001E"
+      ip_address: "192.168.1.100"
+      bluetooth_mac: "AA:BB:CC:DD:EE:01"
+      role: "dut"           # Device Under Test
+      location: "rf_chamber_1"
+
+    - id: "dut-iphone-02"
+      name: "iPhone 15 (DUT)"
+      type: "iPhone"
+      model: "iPhone15,2"
+      os_version: "18.4"
+      udid: "00008030-002B3C4D5E60002F"
+      ip_address: "192.168.1.101"
+      bluetooth_mac: "AA:BB:CC:DD:EE:02"
+      role: "dut"
+      location: "rf_chamber_1"
+
+  # Reference devices — known-good devices to test AGAINST
+  reference:
+    - id: "ref-mac-01"
+      name: "MacBook Pro M3 (Reference)"
+      type: "Mac"
+      model: "Mac15,3"
+      os_version: "15.4"   # Latest stable macOS
+      ip_address: "192.168.1.200"
+      bluetooth_mac: "AA:BB:CC:DD:EE:10"
+      role: "reference"
+      location: "rf_chamber_1"
+
+    - id: "ref-ipad-01"
+      name: "iPad Pro M4 (Reference)"
+      type: "iPad"
+      model: "iPad16,3"
+      os_version: "18.4"
+      udid: "00008030-003C4D5E6F70003G"
+      ip_address: "192.168.1.201"
+      bluetooth_mac: "AA:BB:CC:DD:EE:11"
+      role: "reference"
+      location: "rf_chamber_1"
+
+    - id: "ref-watch-01"
+      name: "Apple Watch Ultra 2 (Reference)"
+      type: "Watch"
+      model: "Watch7,5"
+      os_version: "11.4"
+      bluetooth_mac: "AA:BB:CC:DD:EE:20"
+      role: "reference"
+      location: "rf_chamber_1"
+
+# ------------------------------------------------------------
+# Test Targets — Which DUT ↔ Reference pairs to test
+# Defines the device matrix for each protocol
+# ------------------------------------------------------------
+test_targets:
+  airdrop:
+    pairs:
+      - dut: "dut-iphone-01"
+        reference: "ref-mac-01"
+        direction: "bidirectional"   # dut→ref AND ref→dut
+        test_files: ["photo_4mb.heic", "video_50mb.mov", "contact.vcf"]
+
+      - dut: "dut-iphone-01"
+        reference: "ref-ipad-01"
+        direction: "bidirectional"
+        test_files: ["photo_4mb.heic"]
+
+      - dut: "dut-iphone-01"
+        reference: "ref-watch-01"
+        direction: "dut_to_ref"      # Watch can only receive
+        test_files: ["photo_1mb.heic"]
+
+      - dut: "dut-iphone-02"
+        reference: "ref-mac-01"
+        direction: "bidirectional"
+        test_files: ["photo_4mb.heic"]
+
+    airdrop_modes: ["contacts_only", "everyone"]
+    visibility_timeout_sec: 30
+
+  handoff:
+    pairs:
+      - dut: "dut-iphone-01"
+        reference: "ref-mac-01"
+        activities: ["com.apple.safari.browsing", "com.apple.mail.composing"]
+
+      - dut: "dut-iphone-01"
+        reference: "ref-ipad-01"
+        activities: ["com.apple.safari.browsing"]
+
+    handoff_timeout_sec: 10
+
+  universal_clipboard:
+    pairs:
+      - dut: "dut-iphone-01"
+        reference: "ref-mac-01"
+        test_content: ["short_text", "long_text_5kb", "image_clipboard", "url"]
+
+      - dut: "dut-iphone-01"
+        reference: "ref-ipad-01"
+        test_content: ["short_text"]
+
+    clipboard_timeout_sec: 15
+
+  shareplay:
+    pairs:
+      - participants: ["dut-iphone-01", "ref-ipad-01", "ref-mac-01"]
+        media: "video_stream"
+        max_drift_ms: 500
+
+  namedrop:
+    pairs:
+      - dut: "dut-iphone-01"
+        reference: "ref-iphone-02"
+        proximity_cm: 5   # NFC range
+
+# ------------------------------------------------------------
+# Test Environment — RF Chamber & Network Configuration
+# ------------------------------------------------------------
+test_environment:
+  rf_chamber:
+    enabled: false        # Set true when running in RF chamber
+    chamber_id: "rf_chamber_1"
+    shielding_db: 90      # RF shielding effectiveness in dB
+    # Keysight packet capture (matches Swapnil's Amazon setup)
+    packet_capture:
+      enabled: true
+      tool: "keysight"    # keysight | wireshark | tcpdump
+      interface: "en0"
+      capture_dir: "/tmp/netqual_captures"
+      filters:
+        ble: "btle"
+        wifi: "wlan"
+        tcp: "tcp port 443"
+        mdns: "port 5353"
+
+  network_profiles:
+    # Simulates Network Link Conditioner profiles
+    # Apply to test environment to validate under degraded conditions
+    perfect:
+      bandwidth: null
+      latency_ms: 0
+      packet_loss_pct: 0
+
+    wifi_good:
+      bandwidth: "50mbps"
+      latency_ms: 5
+      packet_loss_pct: 0
+
+    wifi_congested:
+      bandwidth: "10mbps"
+      latency_ms: 30
+      packet_loss_pct: 3
+
+    lte:
+      bandwidth: "20mbps"
+      latency_ms: 50
+      packet_loss_pct: 0.5
+
+    poor_network:
+      bandwidth: "2mbps"
+      latency_ms: 200
+      packet_loss_pct: 5
+
+  # Apple ID test accounts for identity resolution testing
+  test_accounts:
+    - apple_id: "testuser1@icloud.com"
+      device: "dut-iphone-01"
+    - apple_id: "testuser2@icloud.com"
+      device: "ref-mac-01"
+    - apple_id: "testuser3@icloud.com"
+      device: "ref-ipad-01"
+
+# ------------------------------------------------------------
+# Device Communication
+# How NetQual communicates with devices to trigger actions
+# ------------------------------------------------------------
+device_control:
+  # iOS devices via libimobiledevice / Xcode
+  ios:
+    method: "xcrun"       # xcrun | libimobiledevice | appium
+    xcode_path: "/Applications/Xcode.app"
+    instruments_trace: true
+    sysdiagnose_on_failure: true
+
+  # macOS devices via SSH
+  macos:
+    method: "ssh"
+    ssh_user: "testadmin"
+    ssh_key: "~/.ssh/apple_test_key"
+
+  # Watch via paired iPhone
+  watchos:
+    method: "via_iphone"  # Control Watch through paired iPhone
+    paired_with: "dut-iphone-01"
+
+  # Log collection from all devices
+  log_collection:
+    sysdiagnose: true
+    console_log: true
+    packet_capture: true
+    crash_reports: true
+    output_dir: "/tmp/netqual_logs"
+
+# ------------------------------------------------------------
+# Supported Apple Sharing Protocols
+# Each protocol can be enabled/disabled independently.
+# New protocols are added here — no code changes needed.
+# ------------------------------------------------------------
+protocols:
+  airdrop:
+    enabled: true
+    display_name: "AirDrop"
+    description: "File sharing via BLE discovery + AWDL + TLS 1.3"
+    components: ["BLE", "mDNS", "AWDL", "TLS", "AirDrop"]
+    discovery_method: "BLE"
+    transfer_method: "AWDL"
+    encryption: "TLS 1.3"
+    mdns_service: "_airdrop._tcp.local"
+
+  handoff:
+    enabled: true
+    display_name: "Handoff"
+    description: "Activity continuity via BLE + iCloud KV Store + NSUserActivity"
+    components: ["BLE", "Handoff", "iCloud", "NetworkProcess"]
+    discovery_method: "BLE"
+    transfer_method: "iCloud"
+    encryption: "TLS 1.2+"
+    mdns_service: "_companion-link._tcp.local"
+
+  shareplay:
+    enabled: true
+    display_name: "SharePlay"
+    description: "Shared media experiences via GroupActivities + FaceTime"
+    components: ["SharePlay", "FaceTime", "NetworkProcess"]
+    discovery_method: "FaceTime"
+    transfer_method: "QUIC/UDP"
+    encryption: "E2E"
+    max_sync_drift_ms: 500
+
+  universal_clipboard:
+    enabled: true
+    display_name: "Universal Clipboard"
+    description: "Cross-device copy/paste via BLE + AWDL + Handoff"
+    components: ["BLE", "AWDL", "Handoff", "Clipboard"]
+    discovery_method: "BLE"
+    transfer_method: "AWDL"
+    encryption: "TLS 1.3"
+    max_payload_ble_bytes: 4096
+
+  namedrop:
+    enabled: true
+    display_name: "NameDrop"
+    description: "Contact sharing via NFC + BLE proximity"
+    components: ["BLE", "NFC", "NameDrop"]
+    discovery_method: "NFC+BLE"
+    transfer_method: "AWDL"
+    encryption: "TLS 1.3"
+    ble_action_byte: 0x14
+
+# ------------------------------------------------------------
+# OpenDrop Integration
+# Real AirDrop testing via the open-source OpenDrop CLI.
+# https://github.com/seemoo-lab/opendrop
+# Install: pip install opendrop
+# Requires: macOS + AWDL (awdl0 interface) + AirDrop set to "Everyone"
+# ------------------------------------------------------------
+opendrop:
+  enabled: true
+
+  # Discovery
+  discovery:
+    timeout_sec: 15            # How long to scan for nearby devices
+    min_expected_devices: 1    # Fail if fewer devices found in lab environment
+
+  # File Transfer — Send
+  send:
+    timeout_sec: 30            # Per-file transfer timeout
+    min_throughput_mbps: 5     # Minimum acceptable throughput
+    max_duration_4mb_sec: 5    # 4MB photo must transfer within 5s
+
+  # File Transfer — Receive
+  receive:
+    timeout_sec: 60            # How long to listen for incoming transfers
+    output_dir: "/tmp/airdrop_received"
+
+  # Test files used by automated send tests
+  test_files:
+    small:  "sample_files/photo_1mb.heic"
+    medium: "sample_files/photo_4mb.heic"
+    large:  "sample_files/video_50mb.mov"
+
+  # Log parser integration
+  parse_session_log: true      # Feed OpenDrop session log into log_parser after each run
+
+# ------------------------------------------------------------
+# Log Parser Configuration
+# Thresholds and patterns are externalized so QE engineers
+# can tune them per release without code changes.
+# ------------------------------------------------------------
+log_parser:
+  # Regex pattern for log line format
+  line_pattern: '^(\S+)\s+(INFO|WARN|ERROR|DEBUG)\s+\[(\w+)\]\s+(.+)$'
+
+  # Known issue patterns — add new patterns here, not in code
+  patterns:
+    - name: "DNS timeout"
+      regex: 'Resolution failed.*timeout'
+      severity: "P1"
+      impact: "All sharing features blocked — devices cannot resolve Apple services"
+      affected_protocols: ["airdrop", "handoff", "shareplay", "universal_clipboard", "namedrop"]
+
+    - name: "TLS certificate failure"
+      regex: 'Certificate validation failed'
+      severity: "P0"
+      impact: "MITM vulnerability — all encrypted connections fail"
+      affected_protocols: ["airdrop", "handoff", "shareplay", "universal_clipboard", "namedrop"]
+
+    - name: "TLS downgrade"
+      regex: 'Downgrade detected.*TLSv1\.[01]'
+      severity: "P0"
+      impact: "ATS violation — connection uses insecure protocol version"
+      affected_protocols: ["airdrop", "handoff", "shareplay", "universal_clipboard", "namedrop"]
+
+    - name: "BLE interval out of range"
+      regex: '[Ii]nterval out of range'
+      severity: "P2"
+      impact: "AirDrop/NameDrop discovery unreliable"
+      affected_protocols: ["airdrop", "namedrop"]
+
+    - name: "AWDL peer timeout"
+      regex: 'Peer connection failed.*timeout'
+      severity: "P1"
+      impact: "AirDrop file transfer blocked — P2P Wi-Fi channel cannot be established"
+      affected_protocols: ["airdrop", "universal_clipboard"]
+
+    - name: "SharePlay sync drift"
+      regex: 'Sync drift detected.*\d+ms'
+      severity: "P2"
+      impact: "SharePlay participants out of sync"
+      affected_protocols: ["shareplay"]
+
+    - name: "Slow HTTP response"
+      regex: 'Response slow.*\d{4,}ms'
+      severity: "P2"
+      impact: "Handoff/iCloud sync delayed"
+      affected_protocols: ["handoff", "universal_clipboard"]
+
+    - name: "Handshake aborted"
+      regex: 'Handshake aborted'
+      severity: "P0"
+      impact: "TLS connection cannot be established"
+      affected_protocols: ["airdrop", "handoff", "shareplay", "universal_clipboard", "namedrop"]
+
+    - name: "mDNS no response"
+      regex: 'Query sent.*no response'
+      severity: "P1"
+      impact: "Device discovery broken — cannot find nearby Apple devices"
+      affected_protocols: ["airdrop", "handoff"]
+
+    - name: "NFC communication error"
+      regex: 'NFC.*error|NFC.*failed'
+      severity: "P1"
+      impact: "NameDrop contact exchange failed"
+      affected_protocols: ["namedrop"]
+
+# ------------------------------------------------------------
+# Pcap Parser Configuration
+# tshark commands and issue detection thresholds
+# ------------------------------------------------------------
+pcap_parser:
+  tshark_binary: "tshark"    # Path to tshark if not in PATH
+
+  thresholds:
+    dns_slow_ms: 500          # Flag DNS responses slower than this
+    retransmission_rate_pct: 5  # Flag if retransmission rate exceeds this
+    tls_min_version: "1.2"    # Minimum acceptable TLS version
+    http_slow_ms: 2000        # Flag HTTP responses slower than this
+
+  # tshark display filters per analysis type
+  filters:
+    tls: "tls.handshake"
+    dns: "dns"
+    mdns: "mdns"
+    ble: "btle.advertising_header"
+    retransmissions: "tcp.analysis.retransmission"
+    http2: "http2"
+
+  # Apple mDNS services to look for
+  apple_services:
+    - "_airdrop._tcp"
+    - "_airplay._tcp"
+    - "_companion-link._tcp"
+    - "_homekit._tcp"
+    - "_raop._tcp"           # Remote Audio Output Protocol (AirPlay audio)
+
+# ------------------------------------------------------------
+# AirDrop Simulator Configuration
+# Default contacts, file sizes, timing parameters
+# ------------------------------------------------------------
+simulator:
+  default_contacts:
+    - email: "alice@icloud.com"
+      name: "Alice"
+      phone: "+14155551001"
+    - email: "bob@icloud.com"
+      name: "Bob"
+      phone: "+14155551002"
+    - email: "carol@example.com"
+      name: "Carol"
+      phone: "+14155551003"
+
+  # BLE parameters
+  ble:
+    hash_prefix_bytes: 2           # Truncated hash size for BLE payload
+    max_payload_bytes: 31          # BLE advertisement max size
+    apple_company_id: "0x004C"     # Apple Inc. BLE Company ID
+    airdrop_action_byte: 0x05
+    namedrop_action_byte: 0x14
+    expected_interval_min_ms: 20
+    expected_interval_max_ms: 100
+
+  # Transfer simulation parameters
+  transfer:
+    simulated_throughput_mbps: 16.8   # Approximate AWDL throughput
+    awdl_channel: "5GHz"
+    awdl_bandwidth: "80MHz"
+    tls_cipher: "TLS_CHACHA20_POLY1305_SHA256"
+
+# ------------------------------------------------------------
+# Allure Reporting Configuration
+# ------------------------------------------------------------
+reporting:
+  allure_results_dir: "allure-results"
+  features:
+    - name: "Log Analysis"
+      tests: ["test_log_parser.py"]
+    - name: "Packet Analysis"
+      tests: ["test_pcap_parser.py"]
+    - name: "Protocol Simulation"
+      tests: ["test_airdrop_simulator.py"]
+    - name: "Protocol Validation"
+      tests: ["test_network_protocols.py"]
+    - name: "Service Discovery"
+      tests: ["test_bonjour_discovery.py"]
+    - name: "OpenDrop Integration"
+      tests: ["test_opendrop.py"]
+    - name: "Device Testing"
+      tests: ["test_device_airdrop.py", "test_device_handoff.py"]
+
+# ------------------------------------------------------------
+# Pass/Fail Criteria — Per Protocol
+# These thresholds determine if a build is ship-ready.
+# Tuned per release by the QE team.
+# ------------------------------------------------------------
+pass_fail_criteria:
+  airdrop:
+    discovery:
+      max_discovery_time_sec: 5       # Device must appear within 5s
+      min_discovery_rate_pct: 95      # 95% of attempts must discover
+    transfer:
+      min_success_rate_pct: 99        # 99% of transfers must succeed
+      max_transfer_time_4mb_sec: 5    # 4MB photo under 5 seconds
+      max_transfer_time_50mb_sec: 30  # 50MB video under 30 seconds
+      min_throughput_mbps: 5          # Minimum acceptable throughput
+    identity:
+      contact_match_rate_pct: 100     # Must always match known contacts
+      false_positive_rate_pct: 0      # Must never match wrong contact
+
+  handoff:
+    activity_transfer:
+      max_transfer_time_sec: 3        # Activity appears within 3s
+      success_rate_pct: 99
+    ble_path:
+      max_payload_bytes: 4096         # Below this → BLE path
+    continuation_stream:
+      max_setup_time_sec: 2           # AWDL channel for large payloads
+
+  universal_clipboard:
+    copy_paste:
+      max_latency_sec: 3              # Paste appears within 3s
+      success_rate_pct: 99
+      max_content_size_mb: 50         # Max clipboard content
+
+  shareplay:
+    sync:
+      max_drift_ms: 500               # Participants stay within 500ms
+      max_join_time_sec: 5            # New participant joins within 5s
+      max_participants: 32            # SharePlay limit
+
+  namedrop:
+    exchange:
+      max_exchange_time_sec: 2        # Contact shared within 2s
+      success_rate_pct: 99
+      max_proximity_cm: 5             # NFC range
+
+# ------------------------------------------------------------
+# Test Execution — Run configurations
+# Select which tests to run based on context
+# ------------------------------------------------------------
+test_suites:
+  # CI/CD — runs on every commit, no devices needed
+  ci:
+    mode: "simulation"
+    tests:
+      - "test_log_parser.py"
+      - "test_pcap_parser.py"
+      - "test_network_protocols.py"
+      - "test_bonjour_discovery.py"
+      - "test_opendrop.py"   # mocked + preflight tests run without hardware
+    timeout_sec: 120
+
+  # Nightly — runs against real devices in the lab
+  nightly:
+    mode: "device"
+    tests:
+      - "test_device_airdrop.py"
+      - "test_device_handoff.py"
+      - "test_device_clipboard.py"
+    device_pairs: "all"               # Test all configured pairs
+    network_profile: "wifi_good"
+    capture_packets: true
+    collect_sysdiagnose: true
+    timeout_sec: 3600
+
+  # Release validation — full matrix, all conditions
+  release:
+    mode: "device"
+    tests: "all"
+    device_pairs: "all"
+    network_profiles: ["wifi_good", "wifi_congested", "lte", "poor_network"]
+    airdrop_modes: ["contacts_only", "everyone"]
+    capture_packets: true
+    collect_sysdiagnose: true
+    rf_chamber: true
+    timeout_sec: 14400                # 4 hours for full matrix
+
+  # Smoke — quick validation after a build
+  smoke:
+    mode: "device"
+    tests:
+      - "test_device_airdrop.py::test_send_photo_iphone_to_mac"
+      - "test_device_handoff.py::test_safari_handoff"
+    device_pairs:
+      - dut: "dut-iphone-01"
+        reference: "ref-mac-01"
+    network_profile: "wifi_good"
+    timeout_sec: 300
+

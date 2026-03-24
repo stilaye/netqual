@@ -1,0 +1,22 @@
+2026-03-20T14:30:00.100 INFO  [AirDrop]        User initiated share: photo.heic (4.2MB)
+2026-03-20T14:30:00.150 INFO  [BLE]            Starting advertisement: action=0x05, hash_prefix=0xAB12
+2026-03-20T14:30:00.200 INFO  [BLE]            Advertisement payload: 7 bytes, Apple Company ID 0x004C
+2026-03-20T14:30:00.350 INFO  [mDNS]           Query sent: _airdrop._tcp.local (PTR)
+2026-03-20T14:30:00.500 INFO  [mDNS]           Response received: 3 peers on local network
+2026-03-20T14:30:00.600 INFO  [AirDrop]        Identity resolution: checking 3 peers against 142 contacts
+2026-03-20T14:30:00.650 INFO  [AirDrop]        Contact matched: peer_id=iPhone-Alice (hash match on email)
+2026-03-20T14:30:00.700 INFO  [AirDrop]        Contact matched: peer_id=MacBook-Bob (hash match on phone)
+2026-03-20T14:30:00.800 INFO  [AWDL]           Initiating P2P Wi-Fi channel with iPhone-Alice
+2026-03-20T14:30:01.200 INFO  [AWDL]           Channel established: 5GHz, bandwidth=80MHz
+2026-03-20T14:30:01.300 INFO  [TLS]            Mutual authentication started with iPhone-Alice
+2026-03-20T14:30:01.500 INFO  [TLS]            Handshake complete: TLSv1.3, TLS_CHACHA20_POLY1305_SHA256
+2026-03-20T14:30:01.600 INFO  [AirDrop]        Sending offer to iPhone-Alice: photo.heic (4.2MB)
+2026-03-20T14:30:02.000 INFO  [AirDrop]        Offer accepted by iPhone-Alice
+2026-03-20T14:30:02.100 INFO  [AirDrop]        Transfer started: photo.heic -> iPhone-Alice
+2026-03-20T14:30:02.500 INFO  [AirDrop]        Transfer progress: 25% (1.05MB)
+2026-03-20T14:30:03.000 INFO  [AirDrop]        Transfer progress: 50% (2.10MB)
+2026-03-20T14:30:03.500 INFO  [AirDrop]        Transfer progress: 75% (3.15MB)
+2026-03-20T14:30:04.000 INFO  [AirDrop]        Transfer progress: 100% (4.20MB)
+2026-03-20T14:30:04.100 INFO  [AirDrop]        Transfer complete: 4.2MB in 2000ms (16.8 Mbps)
+2026-03-20T14:30:04.200 INFO  [AWDL]           P2P channel closed with iPhone-Alice
+2026-03-20T14:30:04.300 INFO  [BLE]            Advertisement stopped

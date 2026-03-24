@@ -1,0 +1,17 @@
+2026-03-20T11:00:00.100 INFO  [TLS]            ClientHello sent to apple.com:443
+2026-03-20T11:00:00.110 DEBUG [TLS]            Offered versions: TLSv1.3, TLSv1.2
+2026-03-20T11:00:00.120 DEBUG [TLS]            Offered cipher suites: TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256
+2026-03-20T11:00:00.250 INFO  [TLS]            ServerHello received from apple.com:443
+2026-03-20T11:00:00.260 DEBUG [TLS]            Selected version: TLSv1.3
+2026-03-20T11:00:00.270 DEBUG [TLS]            Selected cipher: TLS_AES_256_GCM_SHA384 (256-bit)
+2026-03-20T11:00:00.400 INFO  [TLS]            Certificate received: CN=apple.com, O=Apple Inc., L=Cupertino
+2026-03-20T11:00:00.450 INFO  [TLS]            Certificate chain valid: 3 certs, root=DigiCert Global Root G2
+2026-03-20T11:00:00.500 INFO  [TLS]            Key exchange complete: X25519
+2026-03-20T11:00:00.550 INFO  [TLS]            Handshake complete: TLSv1.3, 450ms total
+2026-03-20T11:00:01.000 INFO  [TLS]            ClientHello sent to 192.168.1.50:443
+2026-03-20T11:00:01.010 DEBUG [TLS]            Offered versions: TLSv1.3, TLSv1.2
+2026-03-20T11:00:01.150 INFO  [TLS]            ServerHello received from 192.168.1.50:443
+2026-03-20T11:00:01.160 DEBUG [TLS]            Selected version: TLSv1.0
+2026-03-20T11:00:01.170 WARN  [TLS]            Downgrade detected: server selected TLSv1.0 (minimum required: TLSv1.2)
+2026-03-20T11:00:01.300 ERROR [TLS]            Certificate validation failed: self-signed cert for 192.168.1.50
+2026-03-20T11:00:01.310 ERROR [TLS]            Handshake aborted: ATS violation (TLS version + cert issue)
