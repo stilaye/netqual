@@ -1,0 +1,13 @@
+# Development dependencies — linting and formatting only.
+# Not needed to run tests.
+# Install: pip install -r requirements-dev.txt
+
+-r requirements.txt   # includes all test deps
+
+# Linting
+pytest-pylint>=0.19.0
+pytest-flake8>=1.1.0
+
+# Formatting
+black>=23.7.0
+isort>=5.12.0
