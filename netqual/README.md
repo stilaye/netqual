@@ -22,6 +22,9 @@ python netqual.py log sample_logs/network_diag.log
 # Run AirDrop simulation
 python netqual.py simulate --scenario transfer
 
+# Analyze a packet capture
+python netqual.py pcap capture.pcap
+
 # Run real AirDrop (requires opendrop + macOS)
 python netqual.py opendrop preflight
 python netqual.py opendrop discover
@@ -32,6 +35,8 @@ python netqual.py test
 # Run everything: log parse + simulation + tests
 python netqual.py all
 ```
+
+> See **[`CLI_CHEAT_SHEET.md`](CLI_CHEAT_SHEET.md)** for the full command and flag reference.
 
 ---
 

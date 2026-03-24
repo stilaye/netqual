@@ -5,6 +5,7 @@ graph TB
         CMD_SIM["netqual simulate"]
         CMD_OD["netqual opendrop"]
         CMD_TEST["netqual test"]
+        CMD_ALL["netqual all\n(log + simulate + test)"]
     end
 
     subgraph INPUTS["Input Sources"]
@@ -49,8 +50,10 @@ graph TB
     CMD_LOG  --> LP
     CMD_PCAP --> PP
     CMD_SIM  --> AS
+    CMD_SIM  --> HS
     CMD_OD   --> OD
     CMD_TEST --> TLP & TPP & TOD
+    CMD_ALL  --> LP & AS & TLP & TPP & TOD
 
     %% Inputs → Modules
     LOG_FILE   --> LP
