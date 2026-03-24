@@ -30,6 +30,12 @@ allure-report/
 # Reports (generated)
 python_tests/reports/
 
+# Sample test media (too large for git; see sample_files/README.md)
+*.heic
+*.mov
+*.mp4
+*.heif
+
 # IDE
 .vscode/
 .idea/
