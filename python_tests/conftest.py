@@ -12,6 +12,7 @@ This file is automatically discovered by pytest and provides:
 Place this at the root of your test directory.
 """
 
+import os
 import pytest
 import logging
 import time
@@ -20,6 +21,8 @@ import socket
 from typing import Dict, Any, Generator
 from pathlib import Path
 import json
+
+from utils.network_conditioner import ComcastConditioner, NLCConditioner
 
 
 # ============================================================
@@ -50,10 +53,15 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "integration: integration tests requiring multiple components"
     )
+    config.addinivalue_line(
+        "markers", "requires_sudo: tests that need sudo privileges (comcast/pfctl)"
+    )
     
-    # Set up logging
+    # Set up logging — level overridable via --log-level or TEST_LOG_LEVEL env var
+    log_level_str = os.getenv("TEST_LOG_LEVEL", "INFO").upper()
+    log_level = getattr(logging, log_level_str, logging.INFO)
     logging.basicConfig(
-        level=logging.INFO,
+        level=log_level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
@@ -77,10 +85,17 @@ def pytest_runtest_setup(item):
     Hook called before each test runs.
     Use for environment validation or setup.
     """
+    markers = [mark.name for mark in item.iter_markers()]
+
     # Skip network tests if --offline flag is present
-    if "network" in [mark.name for mark in item.iter_markers()]:
+    if "network" in markers:
         if item.config.getoption("--offline", default=False):
             pytest.skip("Skipping network test in offline mode")
+
+    # Skip sudo-required tests if --no-sudo flag is present
+    if "requires_sudo" in markers:
+        if item.config.getoption("--no-sudo", default=False):
+            pytest.skip("Skipping sudo-required test (--no-sudo)")
 
 
 def pytest_addoption(parser):
@@ -90,20 +105,32 @@ def pytest_addoption(parser):
     parser.addoption(
         "--offline",
         action="store_true",
-        default=False,
-        help="Skip tests that require network connectivity"
+        default=os.getenv("TEST_OFFLINE", "").lower() == "true",
+        help="Skip tests that require network connectivity [env: TEST_OFFLINE=true]"
     )
     parser.addoption(
         "--env",
         action="store",
-        default="test",
-        help="Test environment: test, staging, production"
+        default=os.getenv("TEST_ENV", "test"),
+        help="Target environment: test, staging, production [env: TEST_ENV]"
     )
     parser.addoption(
         "--generate-report",
         action="store_true",
         default=False,
         help="Generate detailed test report"
+    )
+    parser.addoption(
+        "--no-sudo",
+        action="store_true",
+        default=os.getenv("TEST_NO_SUDO", "").lower() == "true",
+        help="Skip tests that require sudo privileges [env: TEST_NO_SUDO=true]"
+    )
+    parser.addoption(
+        "--log-level",
+        action="store",
+        default=os.getenv("TEST_LOG_LEVEL", "INFO"),
+        help="Console log level: DEBUG, INFO, WARNING, ERROR [env: TEST_LOG_LEVEL]"
     )
 
 
@@ -128,15 +155,17 @@ def test_environment(request) -> str:
 def test_config(test_environment) -> Dict[str, Any]:
     """
     Load environment-specific configuration.
-    
-    Returns:
-        Dictionary containing environment-specific config values.
-    
+
+    Resolution order (first match wins):
+      1. External JSON file at path set by TEST_CONFIG_FILE env var
+      2. Individual env var overrides (TEST_API_BASE_URL, TEST_TIMEOUT, etc.)
+      3. Built-in defaults per environment
+
     Usage:
         def test_api(test_config):
             api_url = test_config['api_base_url']
     """
-    config = {
+    defaults: Dict[str, Dict[str, Any]] = {
         "test": {
             "api_base_url": "https://test-api.example.com",
             "timeout": 10,
@@ -154,9 +183,28 @@ def test_config(test_environment) -> Dict[str, Any]:
             "timeout": 30,
             "retry_count": 5,
             "ssl_verify": True,
-        }
+        },
     }
-    return config.get(test_environment, config["test"])
+
+    # 1. External config file
+    config_file = Path(os.getenv("TEST_CONFIG_FILE", ""))
+    if config_file.is_file():
+        try:
+            file_config = json.loads(config_file.read_text())
+            if test_environment in file_config:
+                return file_config[test_environment]
+        except (json.JSONDecodeError, KeyError) as exc:
+            logging.warning("Could not load TEST_CONFIG_FILE: %s", exc)
+
+    # 2. Start from built-in defaults, apply env var overrides
+    cfg = dict(defaults.get(test_environment, defaults["test"]))
+    if os.getenv("TEST_API_BASE_URL"):
+        cfg["api_base_url"] = os.environ["TEST_API_BASE_URL"]
+    if os.getenv("TEST_TIMEOUT"):
+        cfg["timeout"] = int(os.environ["TEST_TIMEOUT"])
+    if os.getenv("TEST_RETRY_COUNT"):
+        cfg["retry_count"] = int(os.environ["TEST_RETRY_COUNT"])
+    return cfg
 
 
 @pytest.fixture(scope="session")
@@ -417,3 +465,51 @@ def require_ssl_support():
             pytest.skip("Modern SSL/TLS support unavailable")
     except Exception as e:
         pytest.skip(f"SSL initialization failed: {e}")
+
+
+# ============================================================
+# Network Conditioning Fixtures
+# ============================================================
+
+@pytest.fixture
+def comcast_conditioner() -> ComcastConditioner:
+    """
+    Provide a ComcastConditioner instance for system-wide network simulation.
+
+    Wraps the `comcast` CLI (pfctl + dnctl under the hood) to apply 3G / 4G /
+    5G / lossy / high-latency profiles to the entire machine interface.
+
+    Requirements:
+        brew install comcast   (one-time setup)
+        sudo privileges at runtime
+
+    Usage:
+        @pytest.mark.requires_sudo
+        @pytest.mark.network
+        def test_airdrop_on_3g(comcast_conditioner):
+            with comcast_conditioner.profile("3g"):
+                # test runs under 1 Mbps / 200 ms / 2% loss
+                ...
+    """
+    conditioner = ComcastConditioner()
+    yield conditioner
+    conditioner.restore()   # safety net — restores even if test forgot to
+
+
+@pytest.fixture
+def nlc_conditioner() -> NLCConditioner:
+    """
+    Provide an NLCConditioner instance for Network Link Conditioner profile
+    generation and validation.
+
+    NLC has no public CLI to toggle on/off, so this fixture handles profile
+    creation and plist validation only. To apply a profile:
+      1. Use nlc_conditioner.write_profile(PROFILES["3g"], path)
+      2. Import the plist in the NLC preference pane and enable it manually.
+
+    Usage:
+        def test_nlc_profile_structure(nlc_conditioner, tmp_path):
+            path = nlc_conditioner.write_profile(PROFILES["4g"], tmp_path / "4g.plist")
+            assert nlc_conditioner.validate_profile(nlc_conditioner.load_profile(path))
+    """
+    return NLCConditioner()
