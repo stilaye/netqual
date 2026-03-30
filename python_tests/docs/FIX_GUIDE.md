@@ -79,16 +79,10 @@ pip install 'httpx[http2]'
    python verify_test_dependencies.py
    ```
 
-2. **Apply the fixes** to your `test_network_protocols.py` file using the examples in `test_network_protocols_fixed.py`
-
-3. **Run tests again:**
+2. **Run tests again:**
    ```bash
    pytest test_network_protocols.py -v
    ```
-
-## Reference Implementation
-
-See `test_network_protocols_fixed.py` for a complete working example with all fixes applied.
 
 ---
 

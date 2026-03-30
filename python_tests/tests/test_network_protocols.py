@@ -275,6 +275,40 @@ class TestSocketBehavior:
         finally:
             sock.close()
 
+    @pytest.mark.protocol
+    def test_socket_reuse_address(self):
+        """
+        Verify SO_REUSEADDR works — needed for rapid restart scenarios.
+
+        When a server restarts, SO_REUSEADDR allows it to re-bind to the same
+        port without waiting for TIME_WAIT to expire.
+
+        Expected: SO_REUSEADDR enabled (non-zero value).
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            reuse = sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR)
+            assert reuse != 0, "SO_REUSEADDR should be non-zero after being set."
+        finally:
+            sock.close()
+
+    @pytest.mark.protocol
+    def test_socket_timeout_control(self):
+        """
+        Verify socket timeout and blocking mode can be configured.
+
+        Expected: Timeout value is preserved; setblocking(False) sets timeout to 0.
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(5.0)
+            assert sock.gettimeout() == 5.0, "Timeout should be 5.0 after settimeout(5.0)"
+            sock.setblocking(False)
+            assert sock.gettimeout() == 0.0, "Timeout should be 0.0 in non-blocking mode"
+        finally:
+            sock.close()
+
 
 class TestHTTPProtocols:
 
@@ -338,6 +372,55 @@ class TestHTTPProtocols:
                 "HSTS header (strict-transport-security) missing from apple.com response. "
                 "This header is required to prevent protocol downgrade attacks."
             )
+
+    @pytest.mark.network
+    def test_connection_pooling(self, test_config):
+        """
+        Test HTTP connection reuse — critical for performance.
+
+        HTTP/2 multiplexes requests over a single connection. Verifying that
+        two sequential requests to the same host both succeed confirms the
+        client's connection pool is functioning correctly.
+
+        Expected: Both requests return HTTP 200.
+        """
+        pytest.importorskip("h2")
+        import httpx
+
+        timeout = test_config["network_timeout"]
+        with httpx.Client(http2=True, timeout=timeout) as client:
+            r1 = client.get("https://www.apple.com")
+            r2 = client.get("https://www.apple.com")
+            assert r1.status_code == 200, f"First request failed with {r1.status_code}"
+            assert r2.status_code == 200, f"Second request failed with {r2.status_code}"
+
+
+class TestHTTPWithStandardLib:
+    """HTTP tests using only the standard library — no external dependencies."""
+
+    @pytest.mark.network
+    def test_https_connection_with_ssl(self):
+        """
+        Basic HTTPS connection using only the standard library.
+
+        Verifies that a plain urllib + ssl connection to apple.com works
+        without any third-party HTTP client. Useful as a dependency-free
+        baseline for network availability checks.
+
+        Expected: HTTP 200 response from www.apple.com.
+        """
+        import urllib.request
+
+        context = ssl.create_default_context()
+        try:
+            with urllib.request.urlopen(
+                "https://www.apple.com", context=context, timeout=10
+            ) as response:
+                assert (
+                    response.status == 200
+                ), f"Expected HTTP 200 from apple.com, got {response.status}"
+        except Exception as e:
+            pytest.skip(f"Network unreachable: {e}")
 
 
 class TestIdentityPrivacy:

@@ -61,7 +61,6 @@ python_tests/
 ├── requirements.txt                   # Python dependencies
 ├── tests/
 │   ├── test_network_protocols.py      # TLS/SSL, HTTP/2, protocol tests
-│   ├── test_network_protocols_fixed.py
 │   ├── test_bonjour_discovery.py      # mDNS/Bonjour discovery tests
 │   ├── example_enterprise_test.py     # Reference test patterns
 │   └── verify_test_dependencies.py   # Dependency validation

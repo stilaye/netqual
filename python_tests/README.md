@@ -28,21 +28,20 @@ pytest --cov=. --cov-report=html
 
 ## 📊 Test Summary
 
-**Total: 102 tests across 6 test suites**
+**Total: 101 tests across 5 test suites**
 
 | Test Suite | Tests | Sudo Required | Coverage |
 |------------|-------|---------------|----------|
-| `test_network_protocols.py` | 40 | No | TLS 1.3, ATS, DNS, TCP/UDP, HTTP/2, identity hashing, performance |
+| `test_network_protocols.py` | 31 | No | TLS 1.3, ATS, DNS, TCP/UDP, HTTP/2, identity hashing, performance |
 | `test_bonjour_discovery.py` | 15 | No | mDNS packets, AirDrop/AirPlay discovery, BLE payloads, NameDrop |
 | `test_opendrop.py` | 11 | No | OpenDrop /Discover handshake, mDNS service record, BLE advertisement |
 | `test_network_conditioning.py` | 17 | Partial | Network profile validation (offline) + live 3G/4G/5G conditioning |
-| `example_enterprise_test.py` | 19 | No | Framework usage examples and integration tests |
+| `example_enterprise_test.py` | 27 | No | Framework usage examples and integration tests |
 | Postman Collection | 15 | No | Apple service health, TLS validation, HTTP/2 endpoints |
 
 ### Test Results
-- ✅ **92 tests passing** (offline mode)
-- ⏭️ **9 tests skipped** (4 network + 4 requires_sudo + 1 flaky)
-- ⚠️ **1 flaky test** (hash collision simulation - expected behavior)
+- ✅ **70 tests passing** (offline mode, no sudo)
+- ⏭️ skipped: network + requires_sudo tests deselected when running offline
 
 ## 📁 Project Structure
 
@@ -58,7 +57,6 @@ python_tests/
 │   ├── test_bonjour_discovery.py
 │   ├── test_opendrop.py            # OpenDrop protocol tests
 │   ├── test_network_conditioning.py # comcast + NLC network simulation
-│   ├── test_network_protocols_fixed.py
 │   ├── example_enterprise_test.py
 │   └── verify_test_dependencies.py
 │
@@ -106,10 +104,10 @@ python_tests/
 | **Handoff** | Companion Link mDNS discovery (_companion-link._tcp.local) | test_bonjour_discovery.py |
 | **BLE Advertisements** | Payload structure, Apple Company ID (0x004C), 31-byte size limit | test_bonjour_discovery.py |
 | **Identity & Privacy** | SHA-256 contact hashing, PII protection, collision rate, BLE truncation | test_network_protocols.py, test_bonjour_discovery.py |
-| **TLS/SSL** | TLS 1.3 validation, TLS 1.1 downgrade rejection, cipher strength (≥128-bit), cert chains | test_network_protocols.py, test_network_protocols_fixed.py |
-| **HTTP/2** | Protocol negotiation, HSTS header enforcement, HTTPS redirect | test_network_protocols.py, test_network_protocols_fixed.py |
+| **TLS/SSL** | TLS 1.3 validation, TLS 1.1 downgrade rejection, cipher strength (≥128-bit), cert chains | test_network_protocols.py |
+| **HTTP/2** | Protocol negotiation, HSTS header enforcement, HTTPS redirect, connection pooling | test_network_protocols.py |
 | **DNS** | Resolution correctness, latency benchmarks (<500ms) | test_network_protocols.py |
-| **TCP/UDP Sockets** | Keep-alive, timeout, bind, SO_REUSEADDR, refused-connection handling | test_network_protocols.py, test_network_protocols_fixed.py |
+| **TCP/UDP Sockets** | Keep-alive, timeout, bind, SO_REUSEADDR, refused-connection handling | test_network_protocols.py |
 | **Performance** | TLS handshake (<1s), DNS (<500ms), full connection latency (<2s) | test_network_protocols.py, example_enterprise_test.py |
 | **Network Conditioning (comcast)** | 3G/4G/5G profiles, TCP latency degradation, teardown/restore | test_network_conditioning.py |
 | **Network Conditioning (NLC)** | Profile plist structure, key validation, write/read roundtrip | test_network_conditioning.py |

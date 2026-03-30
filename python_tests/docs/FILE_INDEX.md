@@ -40,7 +40,6 @@
 | File | Purpose | Status |
 |------|---------|--------|
 | `verify_test_dependencies.py` | Dependency verification script | ✅ Complete |
-| `test_network_protocols_fixed.py` | Reference implementation | ✅ Complete |
 
 ---
 
@@ -239,14 +238,14 @@ class TestMyFeature:
     @pytest.mark.network
     def test_connection(self, ssl_context, logger):
         """Test using framework components."""
-        
+
         # Fixture from conftest.py
         logger.info("Starting test")
-        
+
         # Utility from network_helpers.py
         helper = ConnectionHelper()
         success, sock, error = helper.connect_with_retry("apple.com", 443)
-        
+
         assert success
         sock.close()
 ```
