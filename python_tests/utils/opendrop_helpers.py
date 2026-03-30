@@ -44,16 +44,17 @@ import struct
 # ============================================================
 
 OPENDROP_SERVICE_TYPE = "_airdrop._tcp.local."  # DNS-SD service type
-OPENDROP_HTTPS_PORT   = 8770                    # Self-signed TLS port
-APPLE_COMPANY_ID      = 0x004C                  # BLE: little-endian b'\x4c\x00'
-AIRDROP_ACTION_BYTE   = 0x05                    # BLE action identifier for AirDrop
-NAMEDROP_ACTION_BYTE  = 0x14                    # BLE action identifier for NameDrop
-OPENDROP_HASH_LEN     = 2                       # Bytes of SHA-256 used in BLE payload
+OPENDROP_HTTPS_PORT = 8770  # Self-signed TLS port
+APPLE_COMPANY_ID = 0x004C  # BLE: little-endian b'\x4c\x00'
+AIRDROP_ACTION_BYTE = 0x05  # BLE action identifier for AirDrop
+NAMEDROP_ACTION_BYTE = 0x14  # BLE action identifier for NameDrop
+OPENDROP_HASH_LEN = 2  # Bytes of SHA-256 used in BLE payload
 
 
 # ============================================================
 # Hashing
 # ============================================================
+
 
 def contact_hash(value: str) -> bytes:
     """
@@ -76,6 +77,7 @@ def contact_hash(value: str) -> bytes:
 # ============================================================
 # /Discover handshake
 # ============================================================
+
 
 def build_discover_request(sender_record: bytes) -> bytes:
     """
@@ -124,6 +126,7 @@ def parse_discover_response(data: bytes) -> dict:
 # BLE advertisement
 # ============================================================
 
+
 def build_ble_advertisement(contact: str, action: int = AIRDROP_ACTION_BYTE) -> bytes:
     """
     Build the BLE Manufacturer Specific Data (MSD) payload used by OpenDrop.
@@ -153,5 +156,5 @@ def build_ble_advertisement(contact: str, action: int = AIRDROP_ACTION_BYTE) -> 
     """
     truncated = contact_hash(contact)[:OPENDROP_HASH_LEN]
     sub_payload = bytes([action, 4, 0x00, 0x00]) + truncated
-    company_id  = struct.pack("<H", APPLE_COMPANY_ID)
+    company_id = struct.pack("<H", APPLE_COMPANY_ID)
     return company_id + sub_payload

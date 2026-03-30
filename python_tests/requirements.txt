@@ -47,6 +47,13 @@ python-dotenv>=1.0.0          # Environment variables
 colorlog>=6.7.0               # Colored logging
 
 # ============================================================
+# Code Quality — Linting, Formatting, Pre-commit
+# ============================================================
+black>=24.0.0                  # Opinionated code formatter
+ruff>=0.4.0                    # Fast Python linter (replaces flake8/isort/pyupgrade)
+pre-commit>=3.7.0              # Git hook manager
+
+# ============================================================
 # Optional: Advanced Features
 # ============================================================
 # pytest-bdd>=6.1.0           # Behavior-driven development

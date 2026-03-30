@@ -31,24 +31,24 @@ logger = logging.getLogger(__name__)
 # Protocol constants
 # ============================================================
 
-MDNS_ADDR      = "224.0.0.251"   # IPv4 mDNS multicast group (RFC 6762 §3)
-MDNS_PORT      = 5353            # Well-known mDNS port
-MDNS_ADDR_V6   = "ff02::fb"      # IPv6 mDNS multicast group
+MDNS_ADDR = "224.0.0.251"  # IPv4 mDNS multicast group (RFC 6762 §3)
+MDNS_PORT = 5353  # Well-known mDNS port
+MDNS_ADDR_V6 = "ff02::fb"  # IPv6 mDNS multicast group
 
 # DNS record types used in service discovery
-QTYPE_PTR  = 12    # Pointer — maps service type to instance name
-QTYPE_A    = 1     # IPv4 address
-QTYPE_AAAA = 28    # IPv6 address
-QTYPE_SRV  = 33    # Service location (host + port)
-QTYPE_TXT  = 16    # Arbitrary text records
+QTYPE_PTR = 12  # Pointer — maps service type to instance name
+QTYPE_A = 1  # IPv4 address
+QTYPE_AAAA = 28  # IPv6 address
+QTYPE_SRV = 33  # Service location (host + port)
+QTYPE_TXT = 16  # Arbitrary text records
 
 # Header byte offsets
-_HDR_FLAGS_OFFSET    = 2
-_HDR_QDCOUNT_OFFSET  = 4
-_HDR_ANCOUNT_OFFSET  = 6
-_HDR_NSCOUNT_OFFSET  = 8
-_HDR_ARCOUNT_OFFSET  = 10
-_HDR_SIZE            = 12
+_HDR_FLAGS_OFFSET = 2
+_HDR_QDCOUNT_OFFSET = 4
+_HDR_ANCOUNT_OFFSET = 6
+_HDR_NSCOUNT_OFFSET = 8
+_HDR_ARCOUNT_OFFSET = 10
+_HDR_SIZE = 12
 
 
 class MDNSHelper:
@@ -91,8 +91,8 @@ class MDNSHelper:
         for label in name.split("."):
             if label:  # skip empty labels from trailing dots
                 question += bytes([len(label)]) + label.encode()
-        question += b"\x00"                         # root label terminator
-        question += struct.pack("!HH", qtype, 1)    # QTYPE, QCLASS=IN
+        question += b"\x00"  # root label terminator
+        question += struct.pack("!HH", qtype, 1)  # QTYPE, QCLASS=IN
 
         return header + question
 
@@ -127,24 +127,21 @@ class MDNSHelper:
         """
         if len(data) < _HDR_SIZE:
             logger.debug(
-                "parse_response: packet too short (%d bytes, need %d)",
-                len(data), _HDR_SIZE
+                "parse_response: packet too short (%d bytes, need %d)", len(data), _HDR_SIZE
             )
             return {"valid": False}
 
-        id_, flags, qdcount, ancount, nscount, arcount = struct.unpack(
-            "!HHHHHH", data[:_HDR_SIZE]
-        )
+        id_, flags, qdcount, ancount, nscount, arcount = struct.unpack("!HHHHHH", data[:_HDR_SIZE])
         return {
-            "valid":       True,
-            "id":          id_,
-            "flags":       flags,
-            "questions":   qdcount,
-            "answers":     ancount,
-            "authority":   nscount,
-            "additional":  arcount,
+            "valid": True,
+            "id": id_,
+            "flags": flags,
+            "questions": qdcount,
+            "answers": ancount,
+            "authority": nscount,
+            "additional": arcount,
             "is_response": bool(flags & 0x8000),
-            "raw_length":  len(data),
+            "raw_length": len(data),
         }
 
     # ------------------------------------------------------------------
@@ -188,16 +185,15 @@ class MDNSHelper:
                 except socket.timeout:
                     break
 
-            logger.debug(
-                "mDNS query for '%s' collected %d response(s)", name, len(responses)
-            )
+            logger.debug("mDNS query for '%s' collected %d response(s)", name, len(responses))
             return responses
 
         except PermissionError as exc:
             logger.warning(
                 "PermissionError sending mDNS query for '%s': %s — "
                 "multicast requires elevated privileges or run with --offline",
-                name, exc
+                name,
+                exc,
             )
             return []
         finally:

@@ -9,15 +9,16 @@ This shows the correct way to:
 3. Check for HTTP/2 support gracefully
 """
 
-import pytest
 import socket
 import ssl
 import struct
 
+import pytest
 
 # ============================================================
 # TLS/SSL Validation Tests
 # ============================================================
+
 
 class TestTLSValidation:
     """Tests for TLS/SSL protocol support — critical for AirDrop security."""
@@ -28,7 +29,7 @@ class TestTLSValidation:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.load_default_certs()  # ← FIX: Load CA certificates
         context.minimum_version = ssl.TLSVersion.TLSv1_3
-        
+
         with socket.create_connection(("apple.com", 443), timeout=10) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com") as ssock:
                 assert ssock.version() == "TLSv1.3"
@@ -40,7 +41,7 @@ class TestTLSValidation:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.load_default_certs()
         context.maximum_version = ssl.TLSVersion.TLSv1_1
-        
+
         with socket.create_connection(("apple.com", 443), timeout=10) as sock:
             with pytest.raises(ssl.SSLError):
                 context.wrap_socket(sock, server_hostname="apple.com")
@@ -51,7 +52,7 @@ class TestTLSValidation:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.load_default_certs()  # ← FIX: Load CA certificates
         context.minimum_version = ssl.TLSVersion.TLSv1_2
-        
+
         with socket.create_connection(("apple.com", 443), timeout=10) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com") as ssock:
                 cipher = ssock.cipher()
@@ -66,20 +67,21 @@ class TestTLSValidation:
         context.load_default_certs()
         context.check_hostname = True
         context.verify_mode = ssl.CERT_REQUIRED
-        
+
         with socket.create_connection(("apple.com", 443), timeout=10) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com") as ssock:
                 cert = ssock.getpeercert()
                 assert cert is not None
                 # Check subject alternative names include apple.com
-                san = cert.get('subjectAltName', [])
-                hostnames = [name for typ, name in san if typ == 'DNS']
-                assert any('apple.com' in h for h in hostnames)
+                san = cert.get("subjectAltName", [])
+                hostnames = [name for typ, name in san if typ == "DNS"]
+                assert any("apple.com" in h for h in hostnames)
 
 
 # ============================================================
 # Socket Behavior Tests
 # ============================================================
+
 
 class TestSocketBehavior:
     """Tests for low-level socket options used in Continuity protocols."""
@@ -90,8 +92,8 @@ class TestSocketBehavior:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            
-            # FIX: On some platforms (macOS, BSD), getsockopt returns the 
+
+            # FIX: On some platforms (macOS, BSD), getsockopt returns the
             # constant SO_KEEPALIVE (8) instead of the value (1)
             # Just verify it's non-zero (enabled)
             keepalive = sock.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE)
@@ -119,7 +121,7 @@ class TestSocketBehavior:
             sock.settimeout(5.0)
             timeout = sock.gettimeout()
             assert timeout == 5.0
-            
+
             # Test blocking mode
             sock.setblocking(False)
             assert sock.gettimeout() == 0.0
@@ -131,6 +133,7 @@ class TestSocketBehavior:
 # HTTP Protocol Tests
 # ============================================================
 
+
 class TestHTTPProtocols:
     """Tests for HTTP/2 and security headers — used in iCloud and App Store APIs."""
 
@@ -139,8 +142,9 @@ class TestHTTPProtocols:
         """Verify HTTP/2 connectivity to Apple services."""
         # Gracefully skip if h2 is not available
         pytest.importorskip("h2")
-        
+
         import httpx
+
         with httpx.Client(http2=True, timeout=10) as client:
             response = client.get("https://www.apple.com")
             # HTTP/2 uses version string "HTTP/2" or "HTTP/2.0"
@@ -151,8 +155,9 @@ class TestHTTPProtocols:
     def test_hsts_header_present(self):
         """Verify HSTS (HTTP Strict Transport Security) is enforced."""
         pytest.importorskip("h2")
-        
+
         import httpx
+
         with httpx.Client(http2=True, timeout=10) as client:
             response = client.get("https://www.apple.com")
             # Apple should have HSTS enabled
@@ -164,13 +169,14 @@ class TestHTTPProtocols:
     def test_connection_pooling(self):
         """Test HTTP connection reuse — critical for performance."""
         pytest.importorskip("h2")
-        
+
         import httpx
+
         with httpx.Client(http2=True, timeout=10) as client:
             # Make multiple requests
             r1 = client.get("https://www.apple.com")
             r2 = client.get("https://www.apple.com")
-            
+
             # Both should succeed
             assert r1.status_code == 200
             assert r2.status_code == 200
@@ -180,19 +186,22 @@ class TestHTTPProtocols:
 # Alternative Test Without httpx Dependency
 # ============================================================
 
+
 class TestHTTPWithStandardLib:
     """HTTP tests using only standard library — no external dependencies."""
 
     @pytest.mark.network
     def test_https_connection_with_ssl(self):
         """Basic HTTPS connection test using only standard library."""
-        import urllib.request
         import ssl
-        
+        import urllib.request
+
         context = ssl.create_default_context()
-        
+
         try:
-            with urllib.request.urlopen("https://www.apple.com", context=context, timeout=10) as response:
+            with urllib.request.urlopen(
+                "https://www.apple.com", context=context, timeout=10
+            ) as response:
                 assert response.status == 200
                 # Check for security headers
                 headers = dict(response.headers)

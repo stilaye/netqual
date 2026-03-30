@@ -7,11 +7,12 @@ Run offline:  pytest test_network_protocols.py -v -m "not network"
 Run all:      pytest test_network_protocols.py -v
 """
 
-import pytest
-import ssl
-import socket
-import time
 import hashlib
+import socket
+import ssl
+import time
+
+import pytest
 
 
 class TestTLSValidation:
@@ -75,9 +76,9 @@ class TestTLSValidation:
         timeout = test_config["network_timeout"]
         with socket.create_connection(("apple.com", 443), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com") as ssock:
-                cert    = ssock.getpeercert()
+                cert = ssock.getpeercert()
                 subject = dict(x[0] for x in cert["subject"])
-                org     = subject.get("organizationName", "")
+                org = subject.get("organizationName", "")
                 assert "Apple" in org, (
                     f"Expected 'Apple' in organizationName, got '{org}'. "
                     "Certificate may have changed — check apple.com cert."
@@ -121,9 +122,9 @@ class TestTLSValidation:
             f"Expected CERT_REQUIRED, got {context.verify_mode}. "
             "Default context must always verify certificates."
         )
-        assert context.check_hostname is True, (
-            "Hostname checking must be enabled in the default SSL context."
-        )
+        assert (
+            context.check_hostname is True
+        ), "Hostname checking must be enabled in the default SSL context."
 
 
 class TestDNSResolution:
@@ -142,12 +143,10 @@ class TestDNSResolution:
         """
         ip = socket.gethostbyname(host)
         octets = ip.split(".")
-        assert len(octets) == 4, (
-            f"'{host}' resolved to '{ip}' which is not a valid IPv4 address"
-        )
-        assert all(o.isdigit() for o in octets), (
-            f"'{host}' resolved to '{ip}' — one or more octets are non-numeric"
-        )
+        assert len(octets) == 4, f"'{host}' resolved to '{ip}' which is not a valid IPv4 address"
+        assert all(
+            o.isdigit() for o in octets
+        ), f"'{host}' resolved to '{ip}' — one or more octets are non-numeric"
 
     @pytest.mark.network
     def test_dns_resolution_time(self):
@@ -180,11 +179,10 @@ class TestDNSResolution:
         """
         mdns_port = 5353
         assert mdns_port == 5353, "mDNS standard port must be 5353 (RFC 6762)"
-        parts = "224.0.0.251".split(".")
+        parts = ["224", "0", "0", "251"]
         first_octet = int(parts[0])
         assert 224 <= first_octet <= 239, (
-            f"mDNS address first octet is {first_octet} — "
-            "must be in multicast range 224–239"
+            f"mDNS address first octet is {first_octet} — " "must be in multicast range 224–239"
         )
 
 
@@ -235,9 +233,7 @@ class TestSocketBehavior:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("0.0.0.0", 0))
             assigned_port = sock.getsockname()[1]
-            assert assigned_port > 0, (
-                f"Expected assigned port > 0, got {assigned_port}"
-            )
+            assert assigned_port > 0, f"Expected assigned port > 0, got {assigned_port}"
         finally:
             sock.close()
 
@@ -294,6 +290,7 @@ class TestHTTPProtocols:
         """
         pytest.importorskip("h2")
         import httpx
+
         timeout = test_config["network_timeout"]
         with httpx.Client(http2=True, timeout=timeout) as client:
             resp = client.get("https://www.apple.com")
@@ -313,6 +310,7 @@ class TestHTTPProtocols:
         Expected: HTTP request returns redirect status code.
         """
         import httpx
+
         timeout = test_config["network_timeout"]
         with httpx.Client(follow_redirects=False, timeout=timeout) as client:
             resp = client.get("http://apple.com")
@@ -332,6 +330,7 @@ class TestHTTPProtocols:
         """
         pytest.importorskip("h2")
         import httpx
+
         timeout = test_config["network_timeout"]
         with httpx.Client(http2=True, timeout=timeout) as client:
             resp = client.get("https://www.apple.com")
@@ -355,9 +354,7 @@ class TestIdentityPrivacy:
         """
         h1 = hashlib.sha256(b"user@example.com").hexdigest()
         h2 = hashlib.sha256(b"user@example.com").hexdigest()
-        assert h1 == h2, (
-            "SHA-256 must be deterministic — same input must always produce same hash"
-        )
+        assert h1 == h2, "SHA-256 must be deterministic — same input must always produce same hash"
 
     @pytest.mark.security
     def test_different_contacts_different_hashes(self):
@@ -370,9 +367,7 @@ class TestIdentityPrivacy:
         """
         h1 = hashlib.sha256(b"alice@example.com").hexdigest()
         h2 = hashlib.sha256(b"bob@example.com").hexdigest()
-        assert h1 != h2, (
-            "Different contacts must produce different hashes to avoid false matches"
-        )
+        assert h1 != h2, "Different contacts must produce different hashes to avoid false matches"
 
     @pytest.mark.security
     def test_hash_is_256_bits(self):
@@ -382,9 +377,7 @@ class TestIdentityPrivacy:
         Expected: Hash output is 64 hexadecimal characters (256 bits).
         """
         digest = hashlib.sha256(b"test").hexdigest()
-        assert len(digest) == 64, (
-            f"Expected 64 hex chars (256 bits), got {len(digest)}"
-        )
+        assert len(digest) == 64, f"Expected 64 hex chars (256 bits), got {len(digest)}"
 
     @pytest.mark.security
     def test_no_pii_in_hash(self):
@@ -413,9 +406,9 @@ class TestIdentityPrivacy:
         """
         full = hashlib.sha256(b"user@example.com").digest()
         truncated = full[:2]
-        assert len(truncated) == 2, (
-            f"Expected 2-byte BLE hash truncation, got {len(truncated)} bytes"
-        )
+        assert (
+            len(truncated) == 2
+        ), f"Expected 2-byte BLE hash truncation, got {len(truncated)} bytes"
 
     @pytest.mark.security
     def test_truncated_hash_contact_matching(self):
@@ -432,12 +425,10 @@ class TestIdentityPrivacy:
             hashlib.sha256(c.encode()).digest()[:2]: c
             for c in ["alice@example.com", "bob@example.com", "carol@example.com"]
         }
-        assert sender in contacts, (
-            "Sender's truncated hash not found in contact lookup table"
-        )
-        assert contacts[sender] == "alice@example.com", (
-            f"Expected 'alice@example.com' but got '{contacts.get(sender)}'"
-        )
+        assert sender in contacts, "Sender's truncated hash not found in contact lookup table"
+        assert (
+            contacts[sender] == "alice@example.com"
+        ), f"Expected 'alice@example.com' but got '{contacts.get(sender)}'"
 
     @pytest.mark.security
     def test_collision_rate_acceptable(self):
@@ -449,7 +440,9 @@ class TestIdentityPrivacy:
 
         Expected: Collision rate < 5% for 1000 random contacts.
         """
-        import random, string
+        import random
+        import string
+
         hashes = set()
         total = 1000
         for _ in range(total):
@@ -475,7 +468,7 @@ class TestPerformance:
         """
         context = ssl.create_default_context()
         timeout = test_config["network_timeout"]
-        start   = time.time()
+        start = time.time()
         with socket.create_connection(("apple.com", 443), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com"):
                 ms = (time.time() - start) * 1000
@@ -493,13 +486,12 @@ class TestPerformance:
         Tests DNS + TCP + TLS combined. Must complete < 2000ms.
         """
         timeout = test_config["network_timeout"]
-        start   = time.time()
-        ip      = socket.gethostbyname("apple.com")
+        start = time.time()
+        ip = socket.gethostbyname("apple.com")
         context = ssl.create_default_context()
         with socket.create_connection((ip, 443), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com"):
                 total_ms = (time.time() - start) * 1000
         assert total_ms < 2000, (
-            f"Full connection (DNS+TCP+TLS) took {total_ms:.1f}ms — "
-            "exceeds 2000ms threshold."
+            f"Full connection (DNS+TCP+TLS) took {total_ms:.1f}ms — " "exceeds 2000ms threshold."
         )

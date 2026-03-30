@@ -12,22 +12,23 @@ This file is automatically discovered by pytest and provides:
 Place this at the root of your test directory.
 """
 
-import os
-import pytest
-import logging
-import time
-import ssl
-import socket
-from typing import Dict, Any, Generator
-from pathlib import Path
 import json
+import logging
+import os
+import socket
+import ssl
+import time
+from pathlib import Path
+from typing import Any, Dict, Generator
+
+import pytest
 
 from utils.network_conditioner import ComcastConditioner, NLCConditioner
-
 
 # ============================================================
 # Pytest Configuration Hooks
 # ============================================================
+
 
 def pytest_configure(config):
     """
@@ -35,34 +36,23 @@ def pytest_configure(config):
     Called once before test collection begins.
     """
     # Register custom markers
-    config.addinivalue_line(
-        "markers", "network: tests that require network connectivity"
-    )
-    config.addinivalue_line(
-        "markers", "security: security-focused tests"
-    )
-    config.addinivalue_line(
-        "markers", "protocol: low-level protocol tests"
-    )
-    config.addinivalue_line(
-        "markers", "performance: performance benchmark tests"
-    )
-    config.addinivalue_line(
-        "markers", "slow: tests that take significant time to run"
-    )
+    config.addinivalue_line("markers", "network: tests that require network connectivity")
+    config.addinivalue_line("markers", "security: security-focused tests")
+    config.addinivalue_line("markers", "protocol: low-level protocol tests")
+    config.addinivalue_line("markers", "performance: performance benchmark tests")
+    config.addinivalue_line("markers", "slow: tests that take significant time to run")
     config.addinivalue_line(
         "markers", "integration: integration tests requiring multiple components"
     )
     config.addinivalue_line(
         "markers", "requires_sudo: tests that need sudo privileges (comcast/pfctl)"
     )
-    
+
     # Set up logging — level overridable via --log-level or TEST_LOG_LEVEL env var
     log_level_str = os.getenv("TEST_LOG_LEVEL", "INFO").upper()
     log_level = getattr(logging, log_level_str, logging.INFO)
     logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
 
@@ -74,7 +64,7 @@ def pytest_collection_modifyitems(config, items):
         # Auto-mark slow tests
         if "slow" in item.nodeid.lower():
             item.add_marker(pytest.mark.slow)
-        
+
         # Auto-mark integration tests
         if "integration" in item.nodeid.lower():
             item.add_marker(pytest.mark.integration)
@@ -88,14 +78,12 @@ def pytest_runtest_setup(item):
     markers = [mark.name for mark in item.iter_markers()]
 
     # Skip network tests if --offline flag is present
-    if "network" in markers:
-        if item.config.getoption("--offline", default=False):
-            pytest.skip("Skipping network test in offline mode")
+    if "network" in markers and item.config.getoption("--offline", default=False):
+        pytest.skip("Skipping network test in offline mode")
 
     # Skip sudo-required tests if --no-sudo flag is present
-    if "requires_sudo" in markers:
-        if item.config.getoption("--no-sudo", default=False):
-            pytest.skip("Skipping sudo-required test (--no-sudo)")
+    if "requires_sudo" in markers and item.config.getoption("--no-sudo", default=False):
+        pytest.skip("Skipping sudo-required test (--no-sudo)")
 
 
 def pytest_addoption(parser):
@@ -106,31 +94,31 @@ def pytest_addoption(parser):
         "--offline",
         action="store_true",
         default=os.getenv("TEST_OFFLINE", "").lower() == "true",
-        help="Skip tests that require network connectivity [env: TEST_OFFLINE=true]"
+        help="Skip tests that require network connectivity [env: TEST_OFFLINE=true]",
     )
     parser.addoption(
         "--env",
         action="store",
         default=os.getenv("TEST_ENV", "test"),
-        help="Target environment: test, staging, production [env: TEST_ENV]"
+        help="Target environment: test, staging, production [env: TEST_ENV]",
     )
     parser.addoption(
         "--generate-report",
         action="store_true",
         default=False,
-        help="Generate detailed test report"
+        help="Generate detailed test report",
     )
     parser.addoption(
         "--no-sudo",
         action="store_true",
         default=os.getenv("TEST_NO_SUDO", "").lower() == "true",
-        help="Skip tests that require sudo privileges [env: TEST_NO_SUDO=true]"
+        help="Skip tests that require sudo privileges [env: TEST_NO_SUDO=true]",
     )
     parser.addoption(
         "--test-log-level",
         action="store",
         default=os.getenv("TEST_LOG_LEVEL", "INFO"),
-        help="Framework log level: DEBUG, INFO, WARNING, ERROR [env: TEST_LOG_LEVEL]"
+        help="Framework log level: DEBUG, INFO, WARNING, ERROR [env: TEST_LOG_LEVEL]",
     )
 
 
@@ -138,11 +126,12 @@ def pytest_addoption(parser):
 # Session-Scoped Fixtures (Setup Once)
 # ============================================================
 
+
 @pytest.fixture(scope="session")
 def test_environment(request) -> str:
     """
     Get test environment from command line or default to 'test'.
-    
+
     Usage:
         def test_something(test_environment):
             if test_environment == "production":
@@ -167,25 +156,25 @@ def test_config(test_environment) -> Dict[str, Any]:
     """
     defaults: Dict[str, Dict[str, Any]] = {
         "test": {
-            "api_base_url":     "https://test-api.example.com",
-            "timeout":          10,
-            "network_timeout":  10,
-            "retry_count":      3,
-            "ssl_verify":       True,
+            "api_base_url": "https://test-api.example.com",
+            "timeout": 10,
+            "network_timeout": 10,
+            "retry_count": 3,
+            "ssl_verify": True,
         },
         "staging": {
-            "api_base_url":     "https://staging-api.example.com",
-            "timeout":          15,
-            "network_timeout":  15,
-            "retry_count":      2,
-            "ssl_verify":       True,
+            "api_base_url": "https://staging-api.example.com",
+            "timeout": 15,
+            "network_timeout": 15,
+            "retry_count": 2,
+            "ssl_verify": True,
         },
         "production": {
-            "api_base_url":     "https://api.example.com",
-            "timeout":          30,
-            "network_timeout":  30,
-            "retry_count":      5,
-            "ssl_verify":       True,
+            "api_base_url": "https://api.example.com",
+            "timeout": 30,
+            "network_timeout": 30,
+            "retry_count": 5,
+            "ssl_verify": True,
         },
     }
 
@@ -217,7 +206,7 @@ def test_config(test_environment) -> Dict[str, Any]:
 def logger() -> logging.Logger:
     """
     Provide a configured logger for tests.
-    
+
     Usage:
         def test_something(logger):
             logger.info("Test started")
@@ -232,12 +221,13 @@ def logger() -> logging.Logger:
 # Network & SSL Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def ssl_context() -> ssl.SSLContext:
     """
     Provide a secure SSL context with proper certificate validation.
     Reusable across all tests requiring SSL/TLS connections.
-    
+
     Usage:
         def test_https_connection(ssl_context):
             with socket.create_connection(("apple.com", 443)) as sock:
@@ -256,7 +246,7 @@ def ssl_context() -> ssl.SSLContext:
 def tcp_socket() -> Generator[socket.socket, None, None]:
     """
     Provide a TCP socket with automatic cleanup.
-    
+
     Usage:
         def test_connection(tcp_socket):
             tcp_socket.connect(("example.com", 80))
@@ -274,7 +264,7 @@ def tcp_socket() -> Generator[socket.socket, None, None]:
 def udp_socket() -> Generator[socket.socket, None, None]:
     """
     Provide a UDP socket with automatic cleanup.
-    
+
     Usage:
         def test_udp_communication(udp_socket):
             udp_socket.sendto(data, address)
@@ -292,7 +282,7 @@ def udp_socket() -> Generator[socket.socket, None, None]:
 def http_client():
     """
     Provide an HTTP client with automatic cleanup.
-    
+
     Usage:
         def test_api_endpoint(http_client):
             response = http_client.get("https://api.example.com/data")
@@ -302,7 +292,7 @@ def http_client():
         import httpx
     except ImportError:
         pytest.skip("httpx not available")
-    
+
     with httpx.Client(timeout=10, follow_redirects=True) as client:
         yield client
 
@@ -310,6 +300,7 @@ def http_client():
 # ============================================================
 # Test Data Fixtures
 # ============================================================
+
 
 @pytest.fixture
 def sample_email_addresses():
@@ -343,39 +334,42 @@ def apple_test_domains():
 # Performance Measurement Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def measure_time():
     """
     Measure execution time of test code blocks.
-    
+
     Usage:
         def test_performance(measure_time):
             with measure_time("API Call") as timer:
                 # Code to measure
                 make_api_call()
-            
+
             assert timer.elapsed_ms < 1000, f"Took {timer.elapsed_ms}ms"
     """
+
     class Timer:
         def __init__(self, name: str):
             self.name = name
             self.start_time = None
             self.elapsed_ms = None
-        
+
         def __enter__(self):
             self.start_time = time.time()
             return self
-        
+
         def __exit__(self, *args):
             self.elapsed_ms = (time.time() - self.start_time) * 1000
             logging.info(f"{self.name}: {self.elapsed_ms:.2f}ms")
-    
+
     return Timer
 
 
 # ============================================================
 # Test Result Tracking Fixtures
 # ============================================================
+
 
 @pytest.fixture(autouse=True)
 def test_result_tracker(request, logger):
@@ -385,9 +379,9 @@ def test_result_tracker(request, logger):
     """
     start_time = time.time()
     logger.info(f"Starting test: {request.node.name}")
-    
+
     yield
-    
+
     duration = (time.time() - start_time) * 1000
     logger.info(f"Completed test: {request.node.name} in {duration:.2f}ms")
 
@@ -396,20 +390,22 @@ def test_result_tracker(request, logger):
 # Mock & Stub Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def mock_network_unavailable(monkeypatch):
     """
     Mock network unavailability for testing offline behavior.
-    
+
     Usage:
         def test_offline_mode(mock_network_unavailable):
             # Network calls will raise ConnectionError
             with pytest.raises(ConnectionError):
                 make_network_request()
     """
+
     def raise_connection_error(*args, **kwargs):
         raise ConnectionError("Network unavailable (mocked)")
-    
+
     monkeypatch.setattr(socket, "create_connection", raise_connection_error)
 
 
@@ -417,12 +413,13 @@ def mock_network_unavailable(monkeypatch):
 # Cleanup & Teardown Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def temp_test_directory(tmp_path):
     """
     Provide a temporary directory for test file operations.
     Automatically cleaned up after test.
-    
+
     Usage:
         def test_file_operations(temp_test_directory):
             test_file = temp_test_directory / "test.txt"
@@ -445,11 +442,12 @@ def session_cleanup():
 # Conditional Skip Fixtures
 # ============================================================
 
+
 @pytest.fixture
 def skip_if_no_network():
     """
     Skip test if network is unavailable.
-    
+
     Usage:
         def test_online_feature(skip_if_no_network):
             # Test code that requires network
@@ -466,8 +464,8 @@ def require_ssl_support():
     Skip test if SSL/TLS support is insufficient.
     """
     try:
-        context = ssl.create_default_context()
-        if not hasattr(ssl, 'TLSVersion'):
+        ssl.create_default_context()
+        if not hasattr(ssl, "TLSVersion"):
             pytest.skip("Modern SSL/TLS support unavailable")
     except Exception as e:
         pytest.skip(f"SSL initialization failed: {e}")
@@ -476,6 +474,7 @@ def require_ssl_support():
 # ============================================================
 # Network Conditioning Fixtures
 # ============================================================
+
 
 @pytest.fixture
 def comcast_conditioner() -> ComcastConditioner:
@@ -499,7 +498,7 @@ def comcast_conditioner() -> ComcastConditioner:
     """
     conditioner = ComcastConditioner()
     yield conditioner
-    conditioner.restore()   # safety net — restores even if test forgot to
+    conditioner.restore()  # safety net — restores even if test forgot to
 
 
 @pytest.fixture

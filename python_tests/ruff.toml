@@ -1,0 +1,59 @@
+# ruff.toml
+# =========
+# Ruff linter configuration for the Apple QE test framework.
+# Docs: https://docs.astral.sh/ruff/configuration/
+#
+# Run:
+#   ruff check .              # check only
+#   ruff check . --fix        # auto-fix safe issues
+#   ruff check . --fix --unsafe-fixes   # fix everything ruff can
+
+# Match black's line length
+line-length = 100
+
+# Target Python 3.8+ (matches pytest.ini minversion)
+target-version = "py38"
+
+# Paths to lint
+src = ["tests", "utils"]
+
+# Files/dirs to skip
+exclude = [
+    ".git",
+    ".pytest_cache",
+    "__pycache__",
+    "apple_qe_env",
+    "reports",
+]
+
+[lint]
+# Rule sets enabled:
+#   E/W  — pycodestyle errors and warnings
+#   F    — pyflakes (undefined names, unused imports, etc.)
+#   I    — isort (import ordering)
+#   UP   — pyupgrade (modernise syntax for target Python version)
+#   B    — flake8-bugbear (likely bugs and design issues)
+#   C4   — flake8-comprehensions (unnecessary list/set/dict comprehensions)
+#   SIM  — flake8-simplify (simplifiable code patterns)
+#   PT   — flake8-pytest-style (pytest best practices)
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "PT"]
+
+ignore = [
+    "E501",   # line too long — handled by black
+    "B008",   # do not perform function calls in default args — needed for pytest fixtures
+    "PT011",  # pytest.raises match= too broad — acceptable in protocol tests
+"SIM117", # nested with statements — readability preference in socket tests
+]
+
+# Allow these patterns without flagging as unused
+[lint.per-file-ignores]
+"tests/*"  = [
+    "F401",   # unused imports — test files sometimes import for side effects
+    "B011",   # assert False — used in some negative test patterns
+]
+"conftest.py" = [
+    "F401",   # fixtures imported but not directly referenced in conftest scope
+]
+
+[lint.isort]
+known-first-party = ["utils"]   # treat utils/ as first-party imports

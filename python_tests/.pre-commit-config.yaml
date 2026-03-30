@@ -1,0 +1,47 @@
+# .pre-commit-config.yaml
+# =======================
+# Pre-commit hooks that run automatically before every git commit.
+#
+# Setup (one-time):
+#   pip install pre-commit
+#   pre-commit install          # installs hooks into .git/hooks/
+#
+# Run manually on all files:
+#   pre-commit run --all-files
+#
+# Skip hooks for a single commit (use sparingly):
+#   git commit --no-verify
+
+repos:
+  # ------------------------------------------------------------------
+  # black — opinionated code formatter
+  # Enforces consistent style: line length, quotes, blank lines, etc.
+  # ------------------------------------------------------------------
+  - repo: https://github.com/psf/black
+    rev: 26.3.1
+    hooks:
+      - id: black
+        language_version: python3
+        args: ["--line-length=100"]
+
+  # ------------------------------------------------------------------
+  # ruff — fast linter (replaces flake8, isort, pyupgrade)
+  # Catches real bugs: unused imports, bare except, undefined names, etc.
+  # ------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.8
+    hooks:
+      - id: ruff
+        args: ["--fix"]        # auto-fix safe issues (imports, whitespace)
+
+  # ------------------------------------------------------------------
+  # Built-in hooks — lightweight checks with no extra deps
+  # ------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace      # remove trailing spaces
+      - id: end-of-file-fixer        # ensure files end with a newline
+      - id: check-yaml               # validate YAML syntax
+      - id: check-merge-conflict     # catch leftover merge conflict markers
+      - id: debug-statements         # flag forgotten pdb/breakpoint() calls

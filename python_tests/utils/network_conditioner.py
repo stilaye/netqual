@@ -28,16 +28,15 @@ Usage (NLC):
     # Import the plist in Network Link Conditioner preference pane
 """
 
+import logging
 import plistlib
 import shutil
 import socket
 import subprocess
 import time
-import logging
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +45,16 @@ logger = logging.getLogger(__name__)
 # Network Profile Definitions
 # ============================================================
 
+
 @dataclass
 class NetworkProfile:
     """Represents a network conditioning profile."""
-    name:              str
-    bandwidth_kbps:    int    # downstream; 0 = unlimited
-    latency_ms:        int    # one-way added delay in milliseconds
-    packet_loss_pct:   float  # 0.0 – 100.0
-    device:            str = "en0"
+
+    name: str
+    bandwidth_kbps: int  # downstream; 0 = unlimited
+    latency_ms: int  # one-way added delay in milliseconds
+    packet_loss_pct: float  # 0.0 – 100.0
+    device: str = "en0"
 
     @property
     def uplink_kbps(self) -> int:
@@ -62,17 +63,18 @@ class NetworkProfile:
 
 
 PROFILES: dict[str, NetworkProfile] = {
-    "3g":           NetworkProfile("3G",           1_000,  200, 2.0),
-    "4g":           NetworkProfile("4G LTE",       20_000,  40, 0.1),
-    "5g":           NetworkProfile("5G",          300_000,   5, 0.0),
-    "lossy":        NetworkProfile("Lossy",              0,  0, 10.0),
-    "high_latency": NetworkProfile("High Latency",       0, 500, 0.0),
+    "3g": NetworkProfile("3G", 1_000, 200, 2.0),
+    "4g": NetworkProfile("4G LTE", 20_000, 40, 0.1),
+    "5g": NetworkProfile("5G", 300_000, 5, 0.0),
+    "lossy": NetworkProfile("Lossy", 0, 0, 10.0),
+    "high_latency": NetworkProfile("High Latency", 0, 500, 0.0),
 }
 
 
 # ============================================================
 # Comcast Conditioner
 # ============================================================
+
 
 class ComcastConditioner:
     """
@@ -91,8 +93,8 @@ class ComcastConditioner:
     """
 
     def __init__(self, device: str = "en0"):
-        self.device   = device
-        self._active  = False
+        self.device = device
+        self._active = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -106,9 +108,7 @@ class ComcastConditioner:
     def apply(self, profile: NetworkProfile) -> None:
         """Apply a network profile system-wide. Requires sudo."""
         if not self.is_available():
-            raise RuntimeError(
-                "comcast not found — install with: brew install comcast"
-            )
+            raise RuntimeError("comcast not found — install with: brew install comcast")
         cmd = ["sudo", "comcast", f"--device={profile.device or self.device}"]
         if profile.latency_ms > 0:
             cmd.append(f"--latency={profile.latency_ms}")
@@ -136,7 +136,8 @@ class ComcastConditioner:
             try:
                 subprocess.run(
                     ["sudo", "comcast", "--stop"],
-                    check=True, capture_output=True,
+                    check=True,
+                    capture_output=True,
                 )
             except subprocess.CalledProcessError as exc:
                 logger.error(
@@ -158,9 +159,7 @@ class ComcastConditioner:
                 latency = measure_tcp_latency("apple.com", 443)
         """
         if name not in PROFILES:
-            raise ValueError(
-                f"Unknown profile '{name}'. Choose from: {list(PROFILES)}"
-            )
+            raise ValueError(f"Unknown profile '{name}'. Choose from: {list(PROFILES)}")
         p = PROFILES[name]
         try:
             self.apply(p)
@@ -185,6 +184,7 @@ class ComcastConditioner:
 # NLC Conditioner
 # ============================================================
 
+
 class NLCConditioner:
     """
     Network Link Conditioner profile builder.
@@ -205,13 +205,15 @@ class NLCConditioner:
     """
 
     # Keys required by the NLC preference pane
-    REQUIRED_KEYS = frozenset({
-        "name",
-        "downlink-bandwidth-kbps",
-        "uplink-bandwidth-kbps",
-        "delay",
-        "packet-loss-percent",
-    })
+    REQUIRED_KEYS = frozenset(
+        {
+            "name",
+            "downlink-bandwidth-kbps",
+            "uplink-bandwidth-kbps",
+            "delay",
+            "packet-loss-percent",
+        }
+    )
 
     # ------------------------------------------------------------------
     # Profile building
@@ -221,11 +223,11 @@ class NLCConditioner:
         """Return a dict matching the NLC plist profile schema."""
         return {
             "profile": {
-                "name":                      profile.name,
-                "downlink-bandwidth-kbps":   profile.bandwidth_kbps,
-                "uplink-bandwidth-kbps":     profile.uplink_kbps,
-                "delay":                     profile.latency_ms,
-                "packet-loss-percent":       profile.packet_loss_pct,
+                "name": profile.name,
+                "downlink-bandwidth-kbps": profile.bandwidth_kbps,
+                "uplink-bandwidth-kbps": profile.uplink_kbps,
+                "delay": profile.latency_ms,
+                "packet-loss-percent": profile.packet_loss_pct,
             }
         }
 

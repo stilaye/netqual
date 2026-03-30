@@ -20,6 +20,7 @@ Run all (requires sudo + comcast):
 
 import plistlib
 import shutil
+
 import pytest
 
 from utils.network_conditioner import PROFILES
@@ -35,6 +36,7 @@ comcast_available = pytest.mark.skipif(
 # Comcast — offline validation (no sudo, no network)
 # ============================================================
 
+
 class TestComcastProfiles:
     """Validate profile constants — no network or sudo needed."""
 
@@ -46,16 +48,16 @@ class TestComcastProfiles:
     def test_3g_profile_values(self):
         p = PROFILES["3g"]
         assert p.bandwidth_kbps == 1_000
-        assert p.latency_ms     == 200
+        assert p.latency_ms == 200
         assert p.packet_loss_pct == 2.0
 
     def test_4g_faster_than_3g(self):
         assert PROFILES["4g"].bandwidth_kbps > PROFILES["3g"].bandwidth_kbps
-        assert PROFILES["4g"].latency_ms     < PROFILES["3g"].latency_ms
+        assert PROFILES["4g"].latency_ms < PROFILES["3g"].latency_ms
 
     def test_5g_faster_than_4g(self):
         assert PROFILES["5g"].bandwidth_kbps > PROFILES["4g"].bandwidth_kbps
-        assert PROFILES["5g"].latency_ms     < PROFILES["4g"].latency_ms
+        assert PROFILES["5g"].latency_ms < PROFILES["4g"].latency_ms
 
     def test_uplink_is_half_of_downlink(self):
         """Mobile links are asymmetric — uplink should be half of downlink."""
@@ -72,6 +74,7 @@ class TestComcastProfiles:
 # ============================================================
 # Comcast — live conditioning (requires sudo + network)
 # ============================================================
+
 
 class TestComcastConditioning:
     """Live network conditioning tests — require comcast installed and sudo."""
@@ -112,9 +115,7 @@ class TestComcastConditioning:
             pass  # apply and immediately exit
 
         restored = comcast_conditioner.measure_tcp_latency("apple.com", 443)
-        assert restored < 2.0, (
-            f"Network not restored after teardown — latency={restored:.3f}s"
-        )
+        assert restored < 2.0, f"Network not restored after teardown — latency={restored:.3f}s"
 
     @comcast_available
     @pytest.mark.requires_sudo
@@ -136,13 +137,14 @@ class TestComcastConditioning:
 # NLC — plist validation (fully offline, no sudo)
 # ============================================================
 
+
 class TestNLCProfilePlist:
     """Validate NLC profile plist structure — no sudo or network needed."""
 
     def test_3g_profile_is_valid_plist(self, nlc_conditioner):
         """Build a 3G profile and verify it round-trips as a valid binary plist."""
-        data   = nlc_conditioner.build_profile(PROFILES["3g"])
-        raw    = plistlib.dumps(data, fmt=plistlib.FMT_BINARY)
+        data = nlc_conditioner.build_profile(PROFILES["3g"])
+        raw = plistlib.dumps(data, fmt=plistlib.FMT_BINARY)
         parsed = plistlib.loads(raw)
         assert "profile" in parsed
 
@@ -150,9 +152,9 @@ class TestNLCProfilePlist:
         """Every key expected by NLC preference pane must be present."""
         for name in ("3g", "4g", "5g"):
             data = nlc_conditioner.build_profile(PROFILES[name])
-            assert nlc_conditioner.validate_profile(data), (
-                f"{name} profile missing required NLC keys"
-            )
+            assert nlc_conditioner.validate_profile(
+                data
+            ), f"{name} profile missing required NLC keys"
 
     def test_profile_name_matches_tier(self, nlc_conditioner):
         """Profile name field must reflect the network tier."""
@@ -166,13 +168,13 @@ class TestNLCProfilePlist:
         bandwidth, latency and packet-loss values.
         """
         profile = PROFILES["4g"]
-        out     = tmp_path / "4g.plist"
+        out = tmp_path / "4g.plist"
         nlc_conditioner.write_profile(profile, out)
 
         loaded = nlc_conditioner.load_profile(out)["profile"]
         assert loaded["downlink-bandwidth-kbps"] == profile.bandwidth_kbps
-        assert loaded["delay"]                   == profile.latency_ms
-        assert loaded["packet-loss-percent"]     == profile.packet_loss_pct
+        assert loaded["delay"] == profile.latency_ms
+        assert loaded["packet-loss-percent"] == profile.packet_loss_pct
 
     def test_all_tiers_write_without_error(self, nlc_conditioner, tmp_path):
         """3G, 4G and 5G profiles must all serialise to disk cleanly."""
