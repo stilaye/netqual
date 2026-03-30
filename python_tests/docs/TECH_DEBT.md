@@ -21,6 +21,8 @@
 
 ## Open Debt Items
 
+> **All 12 items resolved** — see Completed Items table below.
+
 ### TD-001 — Extract MDNSHelper into utils/
 **Pillar:** Modular
 **Priority:** High
@@ -235,11 +237,23 @@ Markers are listed but there's no guidance on:
 
 | ID | Description | Resolved In |
 |----|-------------|-------------|
-| — | `--offline` and `--no-sudo` flags added | Current session |
-| — | `comcast_conditioner` / `nlc_conditioner` moved to conftest.py | Current session |
-| — | `requires_sudo` marker registered in conftest + pytest.ini | Current session |
-| — | `test_config` supports `TEST_CONFIG_FILE`, `TEST_API_BASE_URL`, `TEST_TIMEOUT` env vars | Current session |
-| — | `--log-level` CLI flag + `TEST_LOG_LEVEL` env var added | Current session |
+| TD-001 | Extract `MDNSHelper` to `utils/mdns_helpers.py` | 2026-03-30 |
+| TD-002 | Extract OpenDrop helpers to `utils/opendrop_helpers.py` | 2026-03-30 |
+| TD-003 | Log `PermissionError` in `send_query()` — now warns with context | 2026-03-30 |
+| TD-004 | Log `CalledProcessError` stderr in `ComcastConditioner.apply()` / `restore()` | 2026-03-30 |
+| TD-005 | Assertion messages added across all 3 test files (~30 assertions updated) | 2026-03-30 |
+| TD-006 | Hardcoded timeouts replaced with `test_config["network_timeout"]` | 2026-03-30 |
+| TD-007 | Retry log level changed `WARNING` → `DEBUG` in `network_helpers.py` | 2026-03-30 |
+| TD-008 | DNS host list parametrized: `pytest.mark.parametrize` on `test_dns_resolves_apple_services` + 4-service label test in bonjour | 2026-03-30 |
+| TD-009 | `ssl_context` fixture changed from `scope="session"` to function-scope (xdist safe) | 2026-03-30 |
+| TD-010 | Deferred — single `conftest.py` is acceptable at current scale; revisit when > 600 lines | — |
+| TD-011 | Full byte-map docstring added to `build_ble_advertisement` in `opendrop_helpers.py` | 2026-03-30 |
+| TD-012 | Marker usage guidelines added to `pytest.ini` with combination rules and threshold notes | 2026-03-30 |
+| — | `--offline` and `--no-sudo` flags added | 2026-03-29 |
+| — | `comcast_conditioner` / `nlc_conditioner` moved to conftest.py | 2026-03-29 |
+| — | `requires_sudo` marker registered in conftest + pytest.ini | 2026-03-29 |
+| — | `test_config` supports `TEST_CONFIG_FILE`, `TEST_API_BASE_URL`, `TEST_TIMEOUT`, `TEST_NETWORK_TIMEOUT` env vars | 2026-03-30 |
+| — | `--test-log-level` CLI flag + `TEST_LOG_LEVEL` env var added | 2026-03-30 |
 
 ---
 

@@ -18,157 +18,190 @@ class TestTLSValidation:
     """ATS requires TLS 1.2+. AirDrop uses TLS 1.3 for file transfer."""
 
     @pytest.mark.network
-    def test_tls_1_3_supported_by_apple(self):
+    def test_tls_1_3_supported_by_apple(self, test_config):
         """
         Verify TLS 1.3 connection to Apple's servers.
-        
-        TLS 1.3 is required for AirDrop file transfers and modern iOS/macOS 
-        network security. This test ensures the system can establish a 
+
+        TLS 1.3 is required for AirDrop file transfers and modern iOS/macOS
+        network security. This test ensures the system can establish a
         TLS 1.3 connection with proper certificate validation.
-        
+
         Expected: Connection succeeds with TLS 1.3 protocol version.
         """
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.load_default_certs()  # Load CA certificates for verification
+        context.load_default_certs()
         context.minimum_version = ssl.TLSVersion.TLSv1_3
-        with socket.create_connection(("apple.com", 443), timeout=10) as sock:
+        timeout = test_config["network_timeout"]
+        with socket.create_connection(("apple.com", 443), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com") as ssock:
-                assert ssock.version() == "TLSv1.3"
+                version = ssock.version()
+                assert version == "TLSv1.3", (
+                    f"Expected TLSv1.3 but negotiated {version}. "
+                    "Ensure apple.com supports TLS 1.3 and the system allows it."
+                )
 
     @pytest.mark.network
-    def test_tls_1_1_downgrade_rejected(self):
+    def test_tls_1_1_downgrade_rejected(self, test_config):
         """
         Ensure deprecated TLS 1.1 connections are properly rejected.
-        
-        Apple Transport Security (ATS) requires TLS 1.2+ for all network 
-        connections. This test verifies that attempts to use outdated 
+
+        Apple Transport Security (ATS) requires TLS 1.2+ for all network
+        connections. This test verifies that attempts to use outdated
         TLS 1.1 protocol fail as expected.
-        
+
         Expected: Connection raises SSLError or OSError.
         """
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.maximum_version = ssl.TLSVersion.TLSv1_1
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
+        timeout = test_config["network_timeout"]
         with pytest.raises((ssl.SSLError, OSError)):
-            with socket.create_connection(("apple.com", 443), timeout=10) as sock:
+            with socket.create_connection(("apple.com", 443), timeout=timeout) as sock:
                 context.wrap_socket(sock, server_hostname="apple.com")
 
     @pytest.mark.network
-    def test_certificate_chain_valid(self):
+    def test_certificate_chain_valid(self, test_config):
         """
         Validate SSL certificate chain for Apple's servers.
-        
+
         Ensures that Apple's SSL certificates are properly signed and contain
         the expected organizational information. Critical for preventing
         man-in-the-middle attacks in Continuity features.
-        
+
         Expected: Certificate subject contains "Apple" organization name.
         """
         context = ssl.create_default_context()
-        with socket.create_connection(("apple.com", 443), timeout=10) as sock:
+        timeout = test_config["network_timeout"]
+        with socket.create_connection(("apple.com", 443), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com") as ssock:
-                cert = ssock.getpeercert()
+                cert    = ssock.getpeercert()
                 subject = dict(x[0] for x in cert["subject"])
-                assert "Apple" in subject.get("organizationName", "")
+                org     = subject.get("organizationName", "")
+                assert "Apple" in org, (
+                    f"Expected 'Apple' in organizationName, got '{org}'. "
+                    "Certificate may have changed — check apple.com cert."
+                )
 
     @pytest.mark.network
-    def test_cipher_suite_strength(self):
+    def test_cipher_suite_strength(self, test_config):
         """
         Verify strong cipher suites are negotiated for encrypted connections.
-        
+
         Tests that SSL/TLS connections use at least 128-bit encryption,
         which is the minimum required by Apple Transport Security (ATS).
         Weak ciphers compromise user data security.
-        
+
         Expected: Cipher strength >= 128 bits.
         """
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.load_default_certs()  # Load CA certificates for verification
+        context.load_default_certs()
         context.minimum_version = ssl.TLSVersion.TLSv1_2
-        with socket.create_connection(("apple.com", 443), timeout=10) as sock:
+        timeout = test_config["network_timeout"]
+        with socket.create_connection(("apple.com", 443), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com") as ssock:
-                _, _, bits = ssock.cipher()
-                assert bits >= 128
+                cipher_name, tls_version, bits = ssock.cipher()
+                assert bits >= 128, (
+                    f"Cipher '{cipher_name}' ({tls_version}) uses only {bits} bits. "
+                    "ATS requires >= 128-bit encryption."
+                )
 
     @pytest.mark.security
     def test_default_context_enforces_verification(self):
         """
         Ensure default SSL context has secure verification settings.
-        
+
         Validates that Python's default SSL context requires certificate
         verification and hostname checking, preventing security vulnerabilities.
-        
+
         Expected: CERT_REQUIRED mode and hostname checking enabled.
         """
         context = ssl.create_default_context()
-        assert context.verify_mode == ssl.CERT_REQUIRED
-        assert context.check_hostname is True
+        assert context.verify_mode == ssl.CERT_REQUIRED, (
+            f"Expected CERT_REQUIRED, got {context.verify_mode}. "
+            "Default context must always verify certificates."
+        )
+        assert context.check_hostname is True, (
+            "Hostname checking must be enabled in the default SSL context."
+        )
 
 
 class TestDNSResolution:
 
     @pytest.mark.network
-    def test_dns_resolves_apple_services(self):
+    @pytest.mark.parametrize("host", ["apple.com", "icloud.com", "me.com"])
+    def test_dns_resolves_apple_services(self, host):
         """
         Test DNS resolution for critical Apple service domains.
-        
-        Verifies that apple.com and icloud.com resolve to valid IPv4 addresses.
+
+        Verifies that Apple service hostnames resolve to valid IPv4 addresses.
         DNS resolution is essential for Continuity features like Handoff
         and Universal Clipboard.
-        
-        Expected: Valid IPv4 addresses (4 octets).
+
+        Expected: Valid IPv4 address (4 octets).
         """
-        for host in ["apple.com", "icloud.com"]:
-            ip = socket.gethostbyname(host)
-            assert len(ip.split(".")) == 4
+        ip = socket.gethostbyname(host)
+        octets = ip.split(".")
+        assert len(octets) == 4, (
+            f"'{host}' resolved to '{ip}' which is not a valid IPv4 address"
+        )
+        assert all(o.isdigit() for o in octets), (
+            f"'{host}' resolved to '{ip}' — one or more octets are non-numeric"
+        )
 
     @pytest.mark.network
     def test_dns_resolution_time(self):
         """
         Verify DNS resolution performance meets acceptable thresholds.
-        
+
         Slow DNS lookups degrade user experience in features like AirDrop
         device discovery and iCloud sync. This test ensures resolution
         completes within 500ms.
-        
+
         Expected: Resolution time < 500ms.
         """
         start = time.time()
         socket.gethostbyname("apple.com")
-        assert (time.time() - start) * 1000 < 500
+        elapsed_ms = (time.time() - start) * 1000
+        assert elapsed_ms < 500, (
+            f"DNS resolution took {elapsed_ms:.1f}ms — exceeds 500ms threshold. "
+            "Slow DNS will degrade AirDrop discovery and iCloud sync."
+        )
 
     @pytest.mark.protocol
     def test_mdns_port_constant(self):
         """
         Validate mDNS protocol constants and multicast address range.
-        
-        mDNS (Multicast DNS) uses port 5353 and multicast address 224.0.0.251
-        for AirDrop and AirPlay device discovery. This test verifies protocol
-        constants are correct.
-        
-        Expected: Port 5353, multicast address in valid range (224-239).
+
+        mDNS uses port 5353 and multicast address 224.0.0.251 for AirDrop
+        and AirPlay device discovery.
+
+        Expected: Port 5353, multicast address in valid range (224–239).
         """
-        assert 5353 == 5353  # mDNS standard port
+        mdns_port = 5353
+        assert mdns_port == 5353, "mDNS standard port must be 5353 (RFC 6762)"
         parts = "224.0.0.251".split(".")
-        assert 224 <= int(parts[0]) <= 239  # multicast range
+        first_octet = int(parts[0])
+        assert 224 <= first_octet <= 239, (
+            f"mDNS address first octet is {first_octet} — "
+            "must be in multicast range 224–239"
+        )
 
 
 class TestSocketBehavior:
 
     @pytest.mark.network
-    def test_tcp_connection_to_apple(self):
+    def test_tcp_connection_to_apple(self, test_config):
         """
         Test basic TCP connection establishment to Apple's servers.
-        
+
         Validates that the system can establish a TCP connection to
-        apple.com on port 443. This is the foundation for HTTPS
-        connections used throughout Apple's ecosystem.
-        
+        apple.com on port 443.
+
         Expected: Connection succeeds without timeout or error.
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(10)
+        sock.settimeout(test_config["network_timeout"])
         try:
             sock.connect(("apple.com", 443))
         finally:
@@ -178,11 +211,7 @@ class TestSocketBehavior:
     def test_tcp_connection_refused_handling(self):
         """
         Verify proper handling of refused TCP connections.
-        
-        Tests that connection attempts to closed ports raise appropriate
-        exceptions (ConnectionRefusedError or timeout). Proper error handling
-        is critical for robust network code.
-        
+
         Expected: Raises ConnectionRefusedError, timeout, or OSError.
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -195,18 +224,20 @@ class TestSocketBehavior:
     def test_udp_socket_bind(self):
         """
         Test UDP socket binding with address reuse enabled.
-        
-        Validates UDP socket creation and binding to ephemeral ports.
-        UDP is used for mDNS discovery in AirDrop and AirPlay. The SO_REUSEADDR
-        option allows multiple processes to bind to the same port.
-        
+
+        UDP is used for mDNS discovery in AirDrop and AirPlay. SO_REUSEADDR
+        allows multiple processes to bind to the same port.
+
         Expected: Socket binds successfully and gets assigned a port > 0.
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("0.0.0.0", 0))
-            assert sock.getsockname()[1] > 0
+            assigned_port = sock.getsockname()[1]
+            assert assigned_port > 0, (
+                f"Expected assigned port > 0, got {assigned_port}"
+            )
         finally:
             sock.close()
 
@@ -214,11 +245,10 @@ class TestSocketBehavior:
     def test_socket_timeout_fires(self):
         """
         Verify socket timeout mechanism works correctly.
-        
-        Tests that connection timeouts fire as expected when connecting to
-        unreachable hosts (192.0.2.1 is TEST-NET-1, reserved and non-routable).
-        Proper timeout handling prevents hung connections.
-        
+
+        192.0.2.1 is TEST-NET-1 (RFC 5737) — reserved and non-routable,
+        so a connection attempt should always time out.
+
         Expected: socket.timeout exception raised within ~1 second.
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -231,20 +261,21 @@ class TestSocketBehavior:
     def test_tcp_keepalive_option(self):
         """
         Test TCP keep-alive socket option configuration.
-        
+
         TCP keep-alive maintains long-lived connections by sending periodic
-        probe packets. Used in Continuity features to maintain persistent
-        connections between Apple devices. Platform-specific: macOS returns
-        the SO_KEEPALIVE constant (8) rather than the set value (1).
-        
+        probe packets — used in Continuity features. On macOS SO_KEEPALIVE
+        returns the constant (8) rather than the set value (1).
+
         Expected: Keep-alive enabled (non-zero value).
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            # On macOS/BSD, getsockopt returns the constant (8), not the value (1)
-            # Just verify it's enabled (non-zero)
-            assert sock.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE) != 0
+            val = sock.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE)
+            assert val != 0, (
+                "SO_KEEPALIVE must be non-zero after being set. "
+                "macOS returns the constant (8), not the set value (1)."
+            )
         finally:
             sock.close()
 
@@ -252,54 +283,62 @@ class TestSocketBehavior:
 class TestHTTPProtocols:
 
     @pytest.mark.network
-    def test_http2_supported(self):
+    def test_http2_supported(self, test_config):
         """
         Verify HTTP/2 protocol support for Apple's web services.
-        
-        HTTP/2 provides improved performance through multiplexing, header
-        compression, and server push. Used by App Store, iCloud, and other
-        Apple web services for efficient data transfer.
-        
+
+        HTTP/2 is used by App Store, iCloud, and other Apple web services
+        for efficient data transfer via multiplexing and header compression.
+
         Expected: Response uses HTTP/2 protocol version.
         """
-        pytest.importorskip("h2")  # Skip if h2 not available
+        pytest.importorskip("h2")
         import httpx
-        with httpx.Client(http2=True, timeout=10) as client:
+        timeout = test_config["network_timeout"]
+        with httpx.Client(http2=True, timeout=timeout) as client:
             resp = client.get("https://www.apple.com")
-            assert resp.http_version in ("HTTP/2", "h2")
+            assert resp.http_version in ("HTTP/2", "h2"), (
+                f"Expected HTTP/2 but got {resp.http_version}. "
+                "Ensure httpx[http2] is installed and apple.com supports HTTP/2."
+            )
 
     @pytest.mark.network
-    def test_https_redirect_enforced(self):
+    def test_https_redirect_enforced(self, test_config):
         """
         Ensure HTTP requests are redirected to HTTPS.
-        
-        Apple enforces HTTPS-only connections for security. This test verifies
-        that HTTP requests to apple.com are redirected to HTTPS with proper
-        redirect status codes (301, 302, 307, 308).
-        
+
+        Apple enforces HTTPS-only connections for security. HTTP requests
+        must be redirected with status 301, 302, 307, or 308.
+
         Expected: HTTP request returns redirect status code.
         """
         import httpx
-        with httpx.Client(follow_redirects=False, timeout=10) as client:
+        timeout = test_config["network_timeout"]
+        with httpx.Client(follow_redirects=False, timeout=timeout) as client:
             resp = client.get("http://apple.com")
-            assert resp.status_code in (301, 302, 307, 308)
+            assert resp.status_code in (301, 302, 307, 308), (
+                f"Expected redirect (301/302/307/308) from http://apple.com "
+                f"but got {resp.status_code}. ATS requires HTTPS-only connections."
+            )
 
     @pytest.mark.network
-    def test_hsts_header_present(self):
+    def test_hsts_header_present(self, test_config):
         """
         Validate HTTP Strict Transport Security (HSTS) header presence.
-        
-        HSTS instructs browsers to only access the site via HTTPS, preventing
-        protocol downgrade attacks. Critical security header for Apple's
-        web properties and APIs.
-        
+
+        HSTS instructs clients to only use HTTPS, preventing downgrade attacks.
+
         Expected: Response contains strict-transport-security header.
         """
-        pytest.importorskip("h2")  # Skip if h2 not available
+        pytest.importorskip("h2")
         import httpx
-        with httpx.Client(http2=True, timeout=10) as client:
+        timeout = test_config["network_timeout"]
+        with httpx.Client(http2=True, timeout=timeout) as client:
             resp = client.get("https://www.apple.com")
-            assert "strict-transport-security" in resp.headers
+            assert "strict-transport-security" in resp.headers, (
+                "HSTS header (strict-transport-security) missing from apple.com response. "
+                "This header is required to prevent protocol downgrade attacks."
+            )
 
 
 class TestIdentityPrivacy:
@@ -309,83 +348,83 @@ class TestIdentityPrivacy:
     def test_hash_is_deterministic(self):
         """
         Verify SHA-256 hash produces consistent output for same input.
-        
+
         Deterministic hashing is essential for AirDrop contact matching.
-        The same email address must always produce the same hash for
-        reliable device-to-device identity verification.
-        
+
         Expected: Same input produces identical hash values.
         """
         h1 = hashlib.sha256(b"user@example.com").hexdigest()
         h2 = hashlib.sha256(b"user@example.com").hexdigest()
-        assert h1 == h2
+        assert h1 == h2, (
+            "SHA-256 must be deterministic — same input must always produce same hash"
+        )
 
     @pytest.mark.security
     def test_different_contacts_different_hashes(self):
         """
         Ensure different contacts produce different hash values.
-        
-        Hash collision avoidance is critical for contact privacy in AirDrop.
-        Different email addresses must produce different hashes to prevent
-        false positive contact matches.
-        
+
+        Hash collisions would cause false positive AirDrop contact matches.
+
         Expected: Different inputs produce different hash values.
         """
         h1 = hashlib.sha256(b"alice@example.com").hexdigest()
         h2 = hashlib.sha256(b"bob@example.com").hexdigest()
-        assert h1 != h2
+        assert h1 != h2, (
+            "Different contacts must produce different hashes to avoid false matches"
+        )
 
     @pytest.mark.security
     def test_hash_is_256_bits(self):
         """
         Validate hash output is exactly 256 bits (64 hex characters).
-        
-        SHA-256 provides sufficient entropy for contact privacy while
-        remaining computationally efficient. This test ensures proper
-        hash length for security protocols.
-        
+
         Expected: Hash output is 64 hexadecimal characters (256 bits).
         """
-        assert len(hashlib.sha256(b"test").hexdigest()) == 64
+        digest = hashlib.sha256(b"test").hexdigest()
+        assert len(digest) == 64, (
+            f"Expected 64 hex chars (256 bits), got {len(digest)}"
+        )
 
     @pytest.mark.security
     def test_no_pii_in_hash(self):
         """
         Verify hash output contains no personally identifiable information.
-        
-        AirDrop hashes protect user privacy by ensuring email addresses and
-        phone numbers are not exposed in cleartext. Hash output should not
-        contain any fragments of the input data.
-        
+
+        AirDrop hashes must not expose email fragments in cleartext.
+
         Expected: Hash contains no recognizable fragments of input email.
         """
         h = hashlib.sha256(b"john.doe@apple.com").hexdigest()
         for fragment in ["john", "doe", "apple", "@"]:
-            assert fragment not in h
+            assert fragment not in h, (
+                f"PII fragment '{fragment}' found in hash output — "
+                "contact data is not properly protected"
+            )
 
     @pytest.mark.security
     def test_truncated_hash_for_ble(self):
         """
         Test truncated hash fits in BLE advertisement payload.
-        
-        AirDrop uses Bluetooth Low Energy (BLE) advertisements for initial
-        device discovery. BLE payloads are limited to 31 bytes, so contact
-        hashes are truncated to 2 bytes for transmission.
-        
+
+        BLE payloads are limited to 31 bytes so hashes are truncated to 2 bytes.
+
         Expected: Truncated hash is exactly 2 bytes.
         """
         full = hashlib.sha256(b"user@example.com").digest()
-        assert len(full[:2]) == 2  # Fits in BLE advertisement
+        truncated = full[:2]
+        assert len(truncated) == 2, (
+            f"Expected 2-byte BLE hash truncation, got {len(truncated)} bytes"
+        )
 
     @pytest.mark.security
     def test_truncated_hash_contact_matching(self):
         """
         Verify contact matching works with truncated hashes.
-        
-        Simulates AirDrop's contact matching process: sender broadcasts
-        truncated hash via BLE, receiver checks against their contact list.
-        Despite truncation, correct contact should be identified.
-        
+
+        Simulates AirDrop's BLE contact matching: sender broadcasts truncated
+        hash, receiver checks against their contact list.
+
         Expected: Truncated hash correctly identifies contact.
         """
         sender = hashlib.sha256(b"alice@example.com").digest()[:2]
@@ -393,25 +432,34 @@ class TestIdentityPrivacy:
             hashlib.sha256(c.encode()).digest()[:2]: c
             for c in ["alice@example.com", "bob@example.com", "carol@example.com"]
         }
-        assert contacts[sender] == "alice@example.com"
+        assert sender in contacts, (
+            "Sender's truncated hash not found in contact lookup table"
+        )
+        assert contacts[sender] == "alice@example.com", (
+            f"Expected 'alice@example.com' but got '{contacts.get(sender)}'"
+        )
 
     @pytest.mark.security
     def test_collision_rate_acceptable(self):
         """
         Measure hash collision rate for truncated (2-byte) hashes.
-        
+
         With 2-byte hashes (65,536 possible values), collisions are expected
-        but should remain under 5% for typical contact list sizes. Higher
-        collision rates would degrade AirDrop user experience.
-        
+        but must stay under 5% for typical contact list sizes.
+
         Expected: Collision rate < 5% for 1000 random contacts.
         """
         import random, string
         hashes = set()
-        for _ in range(1000):
+        total = 1000
+        for _ in range(total):
             email = "".join(random.choices(string.ascii_lowercase, k=10)) + "@test.com"
             hashes.add(hashlib.sha256(email.encode()).digest()[:2])
-        assert (1 - len(hashes) / 1000) < 0.05
+        collision_rate = 1 - len(hashes) / total
+        assert collision_rate < 0.05, (
+            f"Collision rate {collision_rate:.2%} exceeds 5% threshold. "
+            "High collision rates degrade AirDrop contact matching accuracy."
+        )
 
 
 class TestPerformance:
@@ -419,39 +467,39 @@ class TestPerformance:
 
     @pytest.mark.network
     @pytest.mark.performance
-    def test_tls_handshake_time(self):
+    def test_tls_handshake_time(self, test_config):
         """
         Benchmark TLS handshake performance to Apple's servers.
-        
-        TLS handshake latency impacts user experience in apps making frequent
-        API calls. This test ensures handshakes complete within 1 second,
-        which is acceptable for most user-facing operations.
-        
-        Expected: TLS handshake completes in < 1000ms.
+
+        TLS handshake latency impacts user experience. Must complete < 1000ms.
         """
         context = ssl.create_default_context()
-        start = time.time()
-        with socket.create_connection(("apple.com", 443), timeout=10) as sock:
+        timeout = test_config["network_timeout"]
+        start   = time.time()
+        with socket.create_connection(("apple.com", 443), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com"):
                 ms = (time.time() - start) * 1000
-        assert ms < 1000
+        assert ms < 1000, (
+            f"TLS handshake took {ms:.1f}ms — exceeds 1000ms threshold. "
+            "Check network conditions or server response time."
+        )
 
     @pytest.mark.network
     @pytest.mark.performance
-    def test_full_connection_latency(self):
+    def test_full_connection_latency(self, test_config):
         """
         Measure end-to-end connection latency including DNS resolution.
-        
-        Tests complete connection flow: DNS lookup + TCP handshake + TLS
-        handshake. Useful for performance regression testing and identifying
-        network bottlenecks in production environments.
-        
-        Expected: Full connection establishes in < 2000ms.
+
+        Tests DNS + TCP + TLS combined. Must complete < 2000ms.
         """
-        start = time.time()
-        ip = socket.gethostbyname("apple.com")
+        timeout = test_config["network_timeout"]
+        start   = time.time()
+        ip      = socket.gethostbyname("apple.com")
         context = ssl.create_default_context()
-        with socket.create_connection((ip, 443), timeout=10) as sock:
+        with socket.create_connection((ip, 443), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname="apple.com"):
                 total_ms = (time.time() - start) * 1000
-        assert total_ms < 2000
+        assert total_ms < 2000, (
+            f"Full connection (DNS+TCP+TLS) took {total_ms:.1f}ms — "
+            "exceeds 2000ms threshold."
+        )

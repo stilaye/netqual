@@ -84,7 +84,10 @@ class ConnectionHelper:
                 
             except Exception as e:
                 last_error = str(e)
-                logger.warning(f"Connection attempt {attempt + 1} failed: {e}")
+                logger.debug(
+                    "Connection attempt %d/%d to %s:%d failed: %s",
+                    attempt + 1, self.retry_count, host, port, e
+                )
                 
                 if attempt < self.retry_count - 1:
                     time.sleep(self.retry_delay)

@@ -127,10 +127,10 @@ def pytest_addoption(parser):
         help="Skip tests that require sudo privileges [env: TEST_NO_SUDO=true]"
     )
     parser.addoption(
-        "--log-level",
+        "--test-log-level",
         action="store",
         default=os.getenv("TEST_LOG_LEVEL", "INFO"),
-        help="Console log level: DEBUG, INFO, WARNING, ERROR [env: TEST_LOG_LEVEL]"
+        help="Framework log level: DEBUG, INFO, WARNING, ERROR [env: TEST_LOG_LEVEL]"
     )
 
 
@@ -167,22 +167,25 @@ def test_config(test_environment) -> Dict[str, Any]:
     """
     defaults: Dict[str, Dict[str, Any]] = {
         "test": {
-            "api_base_url": "https://test-api.example.com",
-            "timeout": 10,
-            "retry_count": 3,
-            "ssl_verify": True,
+            "api_base_url":     "https://test-api.example.com",
+            "timeout":          10,
+            "network_timeout":  10,
+            "retry_count":      3,
+            "ssl_verify":       True,
         },
         "staging": {
-            "api_base_url": "https://staging-api.example.com",
-            "timeout": 15,
-            "retry_count": 2,
-            "ssl_verify": True,
+            "api_base_url":     "https://staging-api.example.com",
+            "timeout":          15,
+            "network_timeout":  15,
+            "retry_count":      2,
+            "ssl_verify":       True,
         },
         "production": {
-            "api_base_url": "https://api.example.com",
-            "timeout": 30,
-            "retry_count": 5,
-            "ssl_verify": True,
+            "api_base_url":     "https://api.example.com",
+            "timeout":          30,
+            "network_timeout":  30,
+            "retry_count":      5,
+            "ssl_verify":       True,
         },
     }
 
@@ -202,6 +205,9 @@ def test_config(test_environment) -> Dict[str, Any]:
         cfg["api_base_url"] = os.environ["TEST_API_BASE_URL"]
     if os.getenv("TEST_TIMEOUT"):
         cfg["timeout"] = int(os.environ["TEST_TIMEOUT"])
+        cfg["network_timeout"] = int(os.environ["TEST_TIMEOUT"])
+    if os.getenv("TEST_NETWORK_TIMEOUT"):
+        cfg["network_timeout"] = int(os.environ["TEST_NETWORK_TIMEOUT"])
     if os.getenv("TEST_RETRY_COUNT"):
         cfg["retry_count"] = int(os.environ["TEST_RETRY_COUNT"])
     return cfg
@@ -226,7 +232,7 @@ def logger() -> logging.Logger:
 # Network & SSL Fixtures
 # ============================================================
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def ssl_context() -> ssl.SSLContext:
     """
     Provide a secure SSL context with proper certificate validation.

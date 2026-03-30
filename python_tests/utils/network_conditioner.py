@@ -118,16 +118,33 @@ class ComcastConditioner:
             cmd.append(f"--packet-loss={profile.packet_loss_pct}%")
 
         logger.info("Applying network profile: %s → %s", profile.name, cmd)
-        subprocess.run(cmd, check=True, capture_output=True)
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+        except subprocess.CalledProcessError as exc:
+            logger.error(
+                "comcast failed applying '%s' (exit %d): %s",
+                profile.name,
+                exc.returncode,
+                exc.stderr.decode(errors="replace") if exc.stderr else "(no stderr)",
+            )
+            raise
         self._active = True
 
     def restore(self) -> None:
         """Remove all conditioning rules and restore normal network."""
         if self._active:
-            subprocess.run(
-                ["sudo", "comcast", "--stop"],
-                check=True, capture_output=True
-            )
+            try:
+                subprocess.run(
+                    ["sudo", "comcast", "--stop"],
+                    check=True, capture_output=True,
+                )
+            except subprocess.CalledProcessError as exc:
+                logger.error(
+                    "comcast --stop failed (exit %d): %s",
+                    exc.returncode,
+                    exc.stderr.decode(errors="replace") if exc.stderr else "(no stderr)",
+                )
+                raise
             self._active = False
             logger.info("Network conditioning removed — restored to normal")
 
