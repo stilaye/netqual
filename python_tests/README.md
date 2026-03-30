@@ -1,6 +1,6 @@
 # Apple Applied Networking — QE Test Portfolio
 
-**Prepared by: Swapnil**  
+**Prepared by: Swapnil**
 **Role: Software Quality Engineer — Applied Networking**
 
 ## 🎯 What This Demonstrates
@@ -240,6 +240,56 @@ Tests are organized using pytest markers:
 - `@pytest.mark.integration` - Integration tests
 - `@pytest.mark.requires_sudo` - Requires sudo (comcast/pfctl network conditioning)
 
+## 🧹 Linting & Formatting
+
+The framework enforces consistent code style using **black** (formatter) and **ruff** (linter).
+
+### Run manually
+
+```bash
+# Format all files
+black --line-length=100 .
+
+# Check formatting without modifying files
+black --check --line-length=100 .
+
+# Lint and auto-fix safe issues
+ruff check . --fix
+
+# Lint check only (no changes)
+ruff check .
+```
+
+### Pre-commit hooks (recommended)
+
+Install once — hooks run automatically on every `git commit`:
+
+```bash
+pip install pre-commit
+pre-commit install
+
+# Run manually against all files
+pre-commit run --all-files
+```
+
+Hooks configured in `.pre-commit-config.yaml`:
+- **black** — code formatting
+- **ruff** — linting with auto-fix
+- **trailing-whitespace**, **end-of-file-fixer**, **check-yaml**, **check-merge-conflict**, **debug-statements**
+
+### Lint rules enabled (`ruff.toml`)
+
+| Rule set | Coverage |
+|----------|----------|
+| `E/W` | pycodestyle errors and warnings |
+| `F` | pyflakes (unused imports, undefined names) |
+| `I` | isort (import ordering) |
+| `UP` | pyupgrade (modernise syntax) |
+| `B` | flake8-bugbear (likely bugs) |
+| `C4` | flake8-comprehensions |
+| `SIM` | flake8-simplify |
+| `PT` | flake8-pytest-style |
+
 ## 📦 Dependencies
 
 Core dependencies:
@@ -312,4 +362,3 @@ This is a proof-of-concept test portfolio for job application purposes.
 ---
 
 **Note**: All tests use publicly documented Apple protocols and APIs. No proprietary or confidential information is included.
-
