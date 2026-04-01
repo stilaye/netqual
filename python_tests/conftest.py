@@ -19,7 +19,7 @@ import socket
 import ssl
 import time
 from pathlib import Path
-from typing import Any, Dict, Generator, List
+from typing import Any, Dict, Generator, List, Optional
 
 import pytest
 
@@ -555,6 +555,50 @@ def comcast_conditioner() -> ComcastConditioner:
     conditioner = ComcastConditioner()
     yield conditioner
     conditioner.restore()  # safety net — restores even if test forgot to
+
+
+@pytest.fixture(scope="session")
+def sysdiagnose_path() -> Optional[Path]:
+    """
+    Resolve the path to a sysdiagnose bundle for log analysis tests.
+
+    Resolution order (first match wins):
+      1. SYSDIAGNOSE_PATH environment variable
+      2. Default location used during development (hardcoded fallback)
+
+    Returns None if no bundle is found — tests that need it will skip.
+
+    Usage:
+        def test_awdl(sysdiagnose_path):
+            if sysdiagnose_path is None:
+                pytest.skip("No sysdiagnose bundle available")
+            parser = SysdiagnoseParser(sysdiagnose_path)
+            awdl = parser.awdl()
+            assert awdl.enabled
+
+    Override:
+        SYSDIAGNOSE_PATH=/path/to/bundle pytest tests/test_sysdiagnose_analysis.py
+    """
+    # 1. Explicit env var override
+    env_path = os.getenv("SYSDIAGNOSE_PATH", "")
+    if env_path:
+        p = Path(env_path)
+        if p.is_dir():
+            return p
+        logging.warning("SYSDIAGNOSE_PATH set but not a directory: %s", env_path)
+
+    # 2. Development fallback — sibling logs/ folder next to the repo root
+    # Repo layout: Apple/apple_qe_portfolio/python_tests/conftest.py
+    #              Apple/logs/sysdiagnose_*/
+    default = (
+        Path(__file__).parent.parent.parent
+        / "logs"
+        / "sysdiagnose_2026.03.31_07-04-51-0700_iPhone-OS_iPhone_23D8133"
+    )
+    if default.is_dir():
+        return default
+
+    return None
 
 
 @pytest.fixture

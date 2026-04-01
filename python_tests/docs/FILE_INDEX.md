@@ -17,6 +17,10 @@
 | `utils/__init__.py` | Package initialization | ~5 | ✅ Complete |
 | `utils/network_helpers.py` | Network testing utilities & helpers | ~450 | ✅ Complete |
 | `utils/test_data_factory.py` | Test data generation factories | ~400 | ✅ Complete |
+| `utils/mdns_helpers.py` | mDNS/Bonjour packet builder & constants | ~150 | ✅ Complete |
+| `utils/opendrop_helpers.py` | OpenDrop protocol helpers (plist, BLE, hash) | ~120 | ✅ Complete |
+| `utils/network_conditioner.py` | comcast + NLC network profile conditioning | ~200 | ✅ Complete |
+| `utils/sysdiagnose_parser.py` | Parses awdl_status.txt + bluetooth_status.txt from sysdiagnose | ~220 | ✅ Complete |
 
 ### 📝 Documentation
 
@@ -26,6 +30,9 @@
 | `QUICK_START.md` | Quick start guide & commands | ~350 lines | ✅ Complete |
 | `CHANGES_APPLIED.md` | Summary of test fixes | ~100 lines | ✅ Complete |
 | `FIX_GUIDE.md` | Detailed fix explanations | ~150 lines | ✅ Complete |
+| `TECH_DEBT.md` | Technical debt register (all resolved) | ~200 lines | ✅ Complete |
+| `SYSDIAGNOSE_ANALYSIS_GUIDE.md` | AirDrop sysdiagnose learning guide + real capture findings | ~200 lines | ✅ Complete |
+| `OPENDROP_TECHNOLOGY_ASSESSMENT.md` | OpenDrop status (abandoned 2021) + modern alternatives | ~150 lines | ✅ Complete |
 
 ### 🧪 Test Files
 
