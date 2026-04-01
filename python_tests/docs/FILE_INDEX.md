@@ -33,6 +33,7 @@
 | `TECH_DEBT.md` | Technical debt register (all resolved) | ~200 lines | ✅ Complete |
 | `SYSDIAGNOSE_ANALYSIS_GUIDE.md` | AirDrop sysdiagnose learning guide + real capture findings | ~200 lines | ✅ Complete |
 | `OPENDROP_TECHNOLOGY_ASSESSMENT.md` | OpenDrop status (abandoned 2021) + modern alternatives | ~150 lines | ✅ Complete |
+| `ARCHITECTURE_DIAGRAMS.pdf` | High-level system architecture — AirDrop, Handoff, SharePlay, Test Automation | 5 pages | ✅ Complete |
 
 ### 🧪 Test Files
 
