@@ -1,364 +1,324 @@
-# Apple Applied Networking — QE Test Portfolio
+# Apple Applied Networking — Enterprise pytest Framework
 
-**Prepared by: Swapnil**
+**Author: Swapnil Tilaye**
 **Role: Software Quality Engineer — Applied Networking**
 
-## 🎯 What This Demonstrates
+---
 
-An enterprise-level test suite covering the protocols behind Apple's Continuity and Sharing features (AirDrop, AirPlay, OpenDrop, Handoff, NameDrop, Universal Clipboard) — including the open-source OpenDrop AirDrop implementation.
+## What This Demonstrates
 
-## 🚀 Quick Start
+An enterprise-level pytest framework validating the protocols behind Apple's
+Continuity and Sharing features (AirDrop, AirPlay, Bonjour, NameDrop, Handoff)
+— including real sysdiagnose analysis from a live AirDrop session on an iPhone.
+
+---
+
+## Quick Start
 
 ```bash
-# Install dependencies
+# Setup
+source apple_qe_env/bin/activate
 pip install -r requirements.txt
+
+# Run offline tests (CI-safe — no network or sudo needed)
+pytest -m "not network and not requires_sudo" -v
+
+# Run the real sysdiagnose analysis (validates a live AirDrop capture)
+pytest tests/test_sysdiagnose_analysis.py -v
 
 # Run all tests
 pytest -v
 
-# Run offline tests only (no network required)
-pytest -v -m "not network"
-
-# Run security-focused tests
-pytest -v -m security
-
-# Run with coverage
-pytest --cov=. --cov-report=html
-```
-
-## 📊 Test Summary
-
-**Total: 101 tests across 5 test suites**
-
-| Test Suite | Tests | Sudo Required | Coverage |
-|------------|-------|---------------|----------|
-| `test_network_protocols.py` | 31 | No | TLS 1.3, ATS, DNS, TCP/UDP, HTTP/2, identity hashing, performance |
-| `test_bonjour_discovery.py` | 15 | No | mDNS packets, AirDrop/AirPlay discovery, BLE payloads, NameDrop |
-| `test_opendrop.py` | 11 | No | OpenDrop /Discover handshake, mDNS service record, BLE advertisement |
-| `test_network_conditioning.py` | 17 | Partial | Network profile validation (offline) + live 3G/4G/5G conditioning |
-| `example_enterprise_test.py` | 27 | No | Framework usage examples and integration tests |
-| Postman Collection | 15 | No | Apple service health, TLS validation, HTTP/2 endpoints |
-
-### Test Results
-- ✅ **70 tests passing** (offline mode, no sudo)
-- ⏭️ skipped: network + requires_sudo tests deselected when running offline
-
-## 📁 Project Structure
-
-```
-python_tests/
-├── conftest.py                 # Pytest fixtures & configuration
-├── pytest.ini                  # Pytest settings
-├── requirements.txt            # All dependencies
-├── device_config.yaml          # DUT, reference & auxiliary device inventory
-├── QUICK_START.md             # Quick reference guide
-│
-├── tests/                      # All test files
-│   ├── test_network_protocols.py
-│   ├── test_bonjour_discovery.py
-│   ├── test_opendrop.py            # OpenDrop protocol tests
-│   ├── test_network_conditioning.py # comcast + NLC network simulation
-│   ├── example_enterprise_test.py
-│   └── verify_test_dependencies.py
-│
-├── utils/                      # Test utilities
-│   ├── __init__.py
-│   ├── network_helpers.py      # Connection, SSL, performance helpers
-│   ├── network_conditioner.py  # ComcastConditioner + NLCConditioner
-│   └── test_data_factory.py   # Test data generation
-│
-├── docs/                       # Documentation
-│   ├── ENTERPRISE_FRAMEWORK_GUIDE.md
-│   ├── FILE_INDEX.md
-│   ├── CHANGES_APPLIED.md
-│   └── FIX_GUIDE.md
-│
-└── reports/                    # Generated test reports
-    ├── html/
-    ├── junit/
-    └── coverage/
-```
-
-## 🧪 Test Coverage by Feature
-
-| Test Area | AirDrop | OpenDrop | AirPlay | Handoff | NameDrop |
-|-----------|---------|----------|---------|---------|----------|
-| TLS 1.3 validation | ✅ | ✅ | ✅ | ✅ | ✅ |
-| mDNS/Bonjour | ✅ | ✅ | ✅ | ✅ | |
-| BLE advertisements | ✅ | ✅ | | ✅ | ✅ |
-| /Discover handshake | | ✅ | | | |
-| HTTP/2 | | | ✅ | ✅ | |
-| Identity hashing | ✅ | ✅ | | | ✅ |
-| Socket behavior | ✅ | ✅ | | | ✅ |
-| DNS resolution | ✅ | ✅ | ✅ | ✅ | ✅ |
-## 📡 Supported Protocol Features
-
-### Features with Dedicated Test Code
-
-| Feature | Protocol/Stack | Test File(s) |
-|---------|---------------|--------------|
-| **AirDrop** | TLS 1.3, mDNS (_airdrop._tcp.local), BLE payloads, identity hashing | test_network_protocols.py, test_bonjour_discovery.py |
-| **OpenDrop** | /Discover plist handshake, mDNS, BLE advertisement (port 8770) | test_opendrop.py |
-| **AirPlay** | mDNS (_airplay._tcp.local) service discovery | test_bonjour_discovery.py |
-| **Bonjour/mDNS** | DNS-SD, multicast UDP (224.0.0.251:5353), packet build/parse | test_bonjour_discovery.py, test_network_protocols.py |
-| **NameDrop** | BLE proximity payload (action byte 0x14), contact hash truncation | test_bonjour_discovery.py, test_network_protocols.py |
-| **Handoff** | Companion Link mDNS discovery (_companion-link._tcp.local) | test_bonjour_discovery.py |
-| **BLE Advertisements** | Payload structure, Apple Company ID (0x004C), 31-byte size limit | test_bonjour_discovery.py |
-| **Identity & Privacy** | SHA-256 contact hashing, PII protection, collision rate, BLE truncation | test_network_protocols.py, test_bonjour_discovery.py |
-| **TLS/SSL** | TLS 1.3 validation, TLS 1.1 downgrade rejection, cipher strength (≥128-bit), cert chains | test_network_protocols.py |
-| **HTTP/2** | Protocol negotiation, HSTS header enforcement, HTTPS redirect, connection pooling | test_network_protocols.py |
-| **DNS** | Resolution correctness, latency benchmarks (<500ms) | test_network_protocols.py |
-| **TCP/UDP Sockets** | Keep-alive, timeout, bind, SO_REUSEADDR, refused-connection handling | test_network_protocols.py |
-| **Performance** | TLS handshake (<1s), DNS (<500ms), full connection latency (<2s) | test_network_protocols.py, example_enterprise_test.py |
-| **Network Conditioning (comcast)** | 3G/4G/5G profiles, TCP latency degradation, teardown/restore | test_network_conditioning.py |
-| **Network Conditioning (NLC)** | Profile plist structure, key validation, write/read roundtrip | test_network_conditioning.py |
-
-### Protocols Validated Indirectly
-
-| Feature | What Is Tested | Not Tested |
-|---------|---------------|------------|
-| **ATS (App Transport Security)** | TLS 1.2+ enforcement, TLS 1.1 rejection (the requirements ATS mandates) | ATS policy enforcement directly (not testable in Python) |
-| **Universal Clipboard** | Underlying DNS, TLS, HTTP/2 layers | Clipboard-specific APIs |
-| **SharePlay** | Underlying TCP, TLS, HTTP/2 layers | SharePlay session/framing APIs |
-
-> **OpenDrop** (`github.com/seemoo-lab/opendrop`) is the open-source Python implementation of AirDrop. `test_opendrop.py` directly tests its three-stage protocol: BLE advertisement format, mDNS service discovery, and the `/Discover` HTTPS plist handshake.
-
-## 🎨 Enterprise Framework Features
-
-This test suite includes an enterprise-level pytest framework with:
-
-### ✅ Core Features
-- **17+ reusable fixtures** (SSL contexts, sockets, HTTP clients, network conditioners)
-- **Custom pytest hooks** (auto-marking, result tracking)
-- **Environment-specific configuration** (test/staging/production)
-- **Network utilities** (retry logic, SSL validation, performance monitoring)
-- **Network conditioning** (3G/4G/5G simulation via comcast + NLC profile generation)
-- **Test data factories** (contacts, endpoints, hashes)
-- **Performance tracking** (timing, benchmarking)
-- **Comprehensive documentation** (1000+ lines)
-
-### 🔧 Fixtures Available
-- `ssl_context` - Configured SSL/TLS context
-- `tcp_socket` / `udp_socket` - Sockets with auto-cleanup
-- `http_client` - HTTP client with auto-cleanup
-- `logger` - Configured logger
-- `test_config` - Environment-specific settings (URLs, timeouts, retry counts)
-- `device_config` - DUT, reference, and auxiliary device inventory from `device_config.yaml`
-- `measure_time` - Performance timing
-- `comcast_conditioner` - System-wide 3G/4G/5G network simulation *(requires sudo)*
-- `nlc_conditioner` - Network Link Conditioner profile builder/validator
-- `skip_if_no_network` - Graceful skip when offline
-- `mock_network_unavailable` - Simulate no-network conditions
-
-### 🛠️ Utilities Available
-- `ConnectionHelper` - Connections with retry logic
-- `SSLValidator` - Certificate and cipher validation
-- `NetworkPerformanceMonitor` - Performance tracking
-- `ComcastConditioner` - Apply/restore network profiles via comcast CLI
-- `NLCConditioner` - Build and validate NLC plist profiles
-- `ContactFactory` - Generate test contacts
-- `NetworkDataFactory` - Generate test endpoints
-
-### ⚙️ CLI Options
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--offline` | false | Skip all `@pytest.mark.network` tests |
-| `--no-sudo` | false | Skip all `@pytest.mark.requires_sudo` tests |
-| `--env` | test | Target environment: `test`, `staging`, `production` |
-| `--generate-report` | false | Generate HTML/JSON test report |
-
-## 📖 Documentation
-
-- **[QUICK_START.md](QUICK_START.md)** - Quick reference for common commands
-- **[docs/ENTERPRISE_FRAMEWORK_GUIDE.md](docs/ENTERPRISE_FRAMEWORK_GUIDE.md)** - Complete framework guide
-- **[docs/FILE_INDEX.md](docs/FILE_INDEX.md)** - Detailed file descriptions
-- **[docs/CHANGES_APPLIED.md](docs/CHANGES_APPLIED.md)** - Recent changes
-- **[docs/FIX_GUIDE.md](docs/FIX_GUIDE.md)** - Troubleshooting guide
-
-## 🏃 Running Tests
-
-### Basic Commands
-```bash
-# All tests
-pytest
-
-# Verbose output
-pytest -v
-
-# Specific test file
-pytest tests/test_network_protocols.py
-
-# Specific test class
-pytest tests/test_network_protocols.py::TestTLSValidation
-
-# Run by marker
-pytest -m network          # Network tests only
-pytest -m security         # Security tests only
-pytest -m "not slow"       # Exclude slow tests
-```
-
-### Network Conditioning Commands
-```bash
-# Offline validation only (no sudo needed)
-pytest tests/test_network_conditioning.py -m "not requires_sudo and not network"
-
-# Full live conditioning (requires: brew install comcast + sudo)
-pytest tests/test_network_conditioning.py -v
-
-# Skip sudo tests globally
-pytest -m "not requires_sudo"
-```
-
-### Advanced Commands
-```bash
-# Parallel execution (faster)
-pytest -n auto
-
-# With coverage report
-pytest --cov=. --cov-report=html --cov-report=term
-
-# Generate HTML report
-pytest --html=reports/report.html --self-contained-html
-
-# Offline mode (skip network tests)
-pytest --offline
-
-# Different environment
-pytest --env=staging
-pytest --env=production
-```
-
-## 🔍 Test Categories
-
-Tests are organized using pytest markers:
-
-- `@pytest.mark.network` - Requires network connectivity
-- `@pytest.mark.security` - Security-focused tests
-- `@pytest.mark.protocol` - Protocol-level tests
-- `@pytest.mark.performance` - Performance benchmarks
-- `@pytest.mark.slow` - Slow-running tests
-- `@pytest.mark.integration` - Integration tests
-- `@pytest.mark.requires_sudo` - Requires sudo (comcast/pfctl network conditioning)
-
-## 🧹 Linting & Formatting
-
-The framework enforces consistent code style using **black** (formatter) and **ruff** (linter).
-
-### Run manually
-
-```bash
-# Format all files
-black --line-length=100 .
-
-# Check formatting without modifying files
-black --check --line-length=100 .
-
-# Lint and auto-fix safe issues
-ruff check . --fix
-
-# Lint check only (no changes)
+# Lint and format
 ruff check .
+black --check --line-length=100 .
 ```
-
-### Pre-commit hooks (recommended)
-
-Install once — hooks run automatically on every `git commit`:
-
-```bash
-pip install pre-commit
-pre-commit install
-
-# Run manually against all files
-pre-commit run --all-files
-```
-
-Hooks configured in `.pre-commit-config.yaml`:
-- **black** — code formatting
-- **ruff** — linting with auto-fix
-- **trailing-whitespace**, **end-of-file-fixer**, **check-yaml**, **check-merge-conflict**, **debug-statements**
-
-### Lint rules enabled (`ruff.toml`)
-
-| Rule set | Coverage |
-|----------|----------|
-| `E/W` | pycodestyle errors and warnings |
-| `F` | pyflakes (unused imports, undefined names) |
-| `I` | isort (import ordering) |
-| `UP` | pyupgrade (modernise syntax) |
-| `B` | flake8-bugbear (likely bugs) |
-| `C4` | flake8-comprehensions |
-| `SIM` | flake8-simplify |
-| `PT` | flake8-pytest-style |
-
-## 📦 Dependencies
-
-Core dependencies:
-```
-pytest>=7.4.0
-pytest-cov>=4.1.0
-httpx[http2]>=0.24.0
-cryptography>=41.0.0
-faker>=19.0.0
-```
-
-See `requirements.txt` for full list.
-
-## 🎯 Key Test Scenarios
-
-### Network Protocol Tests
-- ✅ TLS 1.3 connection validation
-- ✅ Certificate chain verification
-- ✅ Cipher strength validation (≥128 bits)
-- ✅ HTTP/2 protocol support
-- ✅ HSTS header enforcement
-- ✅ DNS resolution performance
-- ✅ TCP keep-alive configuration
-
-### Discovery & Advertisement Tests
-- ✅ mDNS packet format validation
-- ✅ AirDrop service discovery (_airdrop._tcp.local)
-- ✅ AirPlay service discovery (_airplay._tcp.local)
-- ✅ OpenDrop mDNS service record (_airdrop._tcp.local, port 8770)
-- ✅ BLE advertisement payload structure
-- ✅ NameDrop contact sharing format
-
-### OpenDrop Protocol Tests
-- ✅ /Discover plist request format (SenderRecordData)
-- ✅ /Discover plist response fields (ReceiverComputerName, ReceiverModelName)
-- ✅ BLE advertisement Apple Company ID (0x004C)
-- ✅ BLE AirDrop action byte (0x05)
-- ✅ Contact hash truncation to 2 bytes for BLE privacy
-
-### Network Conditioning Tests
-- ✅ 3G / 4G / 5G profile constants validated (bandwidth, latency, packet loss)
-- ✅ Uplink asymmetry validated (uplink = downlink / 2)
-- ✅ NLC profile plist structure validates all required keys
-- ✅ Profile write/read roundtrip (binary plist, disk I/O)
-- ✅ 5G < 4G < 3G latency ordering enforced
-- ⚡ 3G profile measurably increases TCP latency vs baseline *(requires sudo)*
-- ⚡ Network fully restored after context manager exits *(requires sudo)*
-- ⚡ High-latency (500ms) profile verified against live connection *(requires sudo)*
-
-### Security & Privacy Tests
-- ✅ Contact hash determinism
-- ✅ Hash collision rate analysis
-- ✅ Truncated hash validation (BLE)
-- ✅ PII protection in hashes
-- ✅ Identity privacy preservation
-
-### Performance Tests
-- ✅ TLS handshake latency (<1s)
-- ✅ DNS resolution speed (<500ms)
-- ✅ Full connection latency (<2s)
-
-## 🤝 Contributing
-
-This is a demonstration portfolio showcasing QE skills for Apple's Applied Networking team.
-
-## 📝 License
-
-This is a proof-of-concept test portfolio for job application purposes.
 
 ---
 
-**Note**: All tests use publicly documented Apple protocols and APIs. No proprietary or confidential information is included.
+## Test Summary
+
+**118 tests across 6 test files**
+
+| Test File | Tests | Sudo | Coverage |
+|-----------|-------|------|----------|
+| `test_network_protocols.py` | 29 | No | TLS 1.3, ATS, DNS, TCP/UDP, HTTP/2, identity hashing, performance |
+| `test_bonjour_discovery.py` | 16 | No | mDNS packets, AirDrop/AirPlay/NameDrop/Handoff service discovery |
+| `test_opendrop.py` | 11 | No | OpenDrop `/Discover` plist, mDNS service record, BLE advertisement |
+| `test_network_conditioning.py` | 17 | Partial | 3G/4G/5G comcast profiles + NLC plist validation |
+| `test_sysdiagnose_analysis.py` | 17 | No | Real iPhone AirDrop capture — AWDL, BLE, session evidence |
+| `example_enterprise_test.py` | 19 | No | Framework usage patterns and integration examples |
+| Postman Collection | 15 | No | Apple service health, TLS, HTTP/2 endpoints |
+
+**Results (offline mode):**
+- ✅ **86 tests passing** with `pytest -m "not network and not requires_sudo"`
+- ✅ **17/17** sysdiagnose tests pass against real iPhone capture
+- ⏭️ Network and sudo tests deselected in offline mode
+
+---
+
+## Project Structure
+
+```
+python_tests/
+├── conftest.py                       # 20 shared fixtures and hooks
+├── pytest.ini                        # Markers, strict mode, log config
+├── requirements.txt                  # All dependencies
+├── device_config.yaml                # DUT, reference & auxiliary device inventory
+├── ruff.toml                         # Linter rules (E/W/F/I/UP/B/C4/SIM/PT)
+├── .pre-commit-config.yaml           # black + ruff + whitespace/yaml checks
+│
+├── tests/
+│   ├── test_network_protocols.py     # TLS, DNS, HTTP/2, sockets, identity hashing
+│   ├── test_bonjour_discovery.py     # mDNS/Bonjour, BLE, NameDrop, Handoff
+│   ├── test_opendrop.py              # OpenDrop protocol format tests
+│   ├── test_network_conditioning.py  # comcast + NLC network conditioning
+│   ├── test_sysdiagnose_analysis.py  # Real AirDrop sysdiagnose validation
+│   ├── example_enterprise_test.py    # Framework reference patterns
+│   └── verify_test_dependencies.py  # Dependency health check
+│
+├── utils/
+│   ├── network_helpers.py            # ConnectionHelper, SSLValidator, retry logic
+│   ├── test_data_factory.py          # ContactFactory, NetworkDataFactory, HashDataFactory
+│   ├── mdns_helpers.py               # MDNSHelper, packet builder, RFC 6762 constants
+│   ├── opendrop_helpers.py           # OpenDrop plist, BLE advertisement, contact hash
+│   ├── network_conditioner.py        # ComcastConditioner, NLCConditioner, PROFILES
+│   └── sysdiagnose_parser.py         # AWDLStatusParser, BluetoothStatusParser
+│
+├── docs/
+│   ├── ENTERPRISE_FRAMEWORK_GUIDE.md
+│   ├── SYSDIAGNOSE_ANALYSIS_GUIDE.md     # ← AirDrop real capture learnings
+│   ├── OPENDROP_TECHNOLOGY_ASSESSMENT.md # ← OpenDrop status + modern alternatives
+│   ├── TECH_DEBT.md                      # 12 items, all resolved
+│   ├── FILE_INDEX.md
+│   └── FIX_GUIDE.md
+│
+└── reports/
+    └── pytest.log
+```
+
+---
+
+## Supported Protocol Features
+
+| Feature | Protocol / Stack | Test File(s) |
+|---------|-----------------|--------------|
+| **AirDrop** | TLS 1.3, mDNS `_airdrop._tcp.local`, BLE SHA-256 hash, AWDL | `test_network_protocols.py`, `test_bonjour_discovery.py`, `test_sysdiagnose_analysis.py` |
+| **OpenDrop** | `/Discover` plist handshake, mDNS, BLE advertisement (port 8770) | `test_opendrop.py` |
+| **AirPlay** | mDNS `_airplay._tcp.local` service discovery | `test_bonjour_discovery.py` |
+| **Bonjour/mDNS** | DNS-SD, multicast UDP (224.0.0.251:5353), packet build/parse | `test_bonjour_discovery.py`, `test_network_protocols.py` |
+| **NameDrop** | BLE proximity payload (action byte 0x14), contact hash truncation | `test_bonjour_discovery.py`, `test_network_protocols.py` |
+| **Handoff** | Companion Link mDNS `_companion-link._tcp.local` | `test_bonjour_discovery.py` |
+| **BLE Advertisements** | Payload structure, Apple Company ID (0x004C), 31-byte limit | `test_bonjour_discovery.py`, `test_opendrop.py` |
+| **Identity & Privacy** | SHA-256 contact hashing, PII protection, collision rate, BLE truncation | `test_network_protocols.py` |
+| **TLS/SSL** | TLS 1.3, downgrade rejection, cipher strength (≥128-bit), cert chains | `test_network_protocols.py` |
+| **HTTP/2** | Protocol negotiation, HSTS enforcement, HTTPS redirect, connection pooling | `test_network_protocols.py` |
+| **TCP/UDP Sockets** | Keep-alive, timeout, bind, SO_REUSEADDR, non-blocking | `test_network_protocols.py` |
+| **DNS** | Resolution correctness, latency benchmarks (<500ms) | `test_network_protocols.py` |
+| **Network Conditioning** | 3G/4G/5G comcast profiles, NLC plist structure | `test_network_conditioning.py` |
+| **Sysdiagnose** | AWDL state, BLE state, real AirDrop session evidence | `test_sysdiagnose_analysis.py` |
+| **Performance** | TLS handshake (<1s), DNS (<500ms), connection latency (<2s) | `test_network_protocols.py` |
+
+---
+
+## Framework Features
+
+### Fixtures (conftest.py — 20 total)
+
+| Fixture | Scope | Description |
+|---------|-------|-------------|
+| `ssl_context` | function | Secure SSLContext (TLS 1.2+, cert verification) |
+| `tcp_socket` | function | TCP socket with auto-cleanup |
+| `udp_socket` | function | UDP socket with auto-cleanup |
+| `http_client` | function | `httpx.Client` with timeout and redirects |
+| `logger` | session | Configured `logging.Logger` |
+| `test_config` | session | Env-specific config dict (urls, timeouts, retries) |
+| `test_environment` | session | Returns `--env` value (`test`/`staging`/`production`) |
+| `device_config` | session | DUT, reference, auxiliary device inventory from `device_config.yaml` |
+| `sysdiagnose_path` | session | Path to sysdiagnose bundle (`SYSDIAGNOSE_PATH` env var) |
+| `measure_time` | function | Context manager for timing code blocks |
+| `comcast_conditioner` | function | Apply/restore 3G/4G/5G network profiles *(requires sudo)* |
+| `nlc_conditioner` | function | NLC profile builder and plist validator |
+| `skip_if_no_network` | function | Skips test if DNS/network is unavailable |
+| `mock_network_unavailable` | function | Monkeypatches socket to simulate no network |
+| `apple_test_domains` | function | List of Apple domains for network tests |
+| `sample_email_addresses` | function | Sample emails for hashing/contact tests |
+| `temp_test_directory` | function | Temporary directory (auto-cleaned) |
+| `require_ssl_support` | function | Skips test if SSL/TLS support is insufficient |
+| `test_result_tracker` | function | Automatic pass/fail tracking |
+| `session_cleanup` | session | Final cleanup hook |
+
+### Utilities (utils/)
+
+| Module | Key Classes | Purpose |
+|--------|------------|---------|
+| `network_helpers.py` | `ConnectionHelper`, `SSLValidator`, `NetworkPerformanceMonitor` | Retry logic, cert validation, perf tracking |
+| `test_data_factory.py` | `ContactFactory`, `NetworkDataFactory`, `HashDataFactory` | Realistic test data generation |
+| `mdns_helpers.py` | `MDNSHelper` | RFC 6762 mDNS packet construction |
+| `opendrop_helpers.py` | `build_discover_request`, `build_ble_advertisement` | OpenDrop protocol helpers |
+| `network_conditioner.py` | `ComcastConditioner`, `NLCConditioner`, `PROFILES` | Network conditioning for 3G/4G/5G |
+| `sysdiagnose_parser.py` | `SysdiagnoseParser`, `AWDLStatusParser`, `BluetoothStatusParser` | Real device log analysis |
+
+### CLI Options
+
+| Option | Default | Env Var | Description |
+|--------|---------|---------|-------------|
+| `--offline` | false | `TEST_OFFLINE` | Skip all `@pytest.mark.network` tests |
+| `--no-sudo` | false | `TEST_NO_SUDO` | Skip all `@pytest.mark.requires_sudo` tests |
+| `--env` | test | `TEST_ENV` | Target environment: `test`, `staging`, `production` |
+| `--test-log-level` | INFO | `TEST_LOG_LEVEL` | Log verbosity for test output |
+| `--generate-report` | false | — | Generate HTML/JSON report |
+
+### Custom Markers
+
+| Marker | Purpose |
+|--------|---------|
+| `network` | Requires live network connectivity |
+| `security` | SSL/TLS and security-focused tests |
+| `protocol` | Low-level protocol tests (mDNS, BLE, sockets) |
+| `performance` | Benchmark and timing tests |
+| `slow` | Tests that take > 1 second |
+| `integration` | Multi-component integration tests |
+| `smoke` | Critical path / smoke tests |
+| `regression` | Bug regression tests |
+| `requires_sudo` | Needs sudo (comcast/pfctl network conditioning) |
+
+---
+
+## Running Tests
+
+```bash
+# CI-safe (no network, no sudo)
+pytest -m "not network and not requires_sudo" -v
+
+# Real sysdiagnose validation
+pytest tests/test_sysdiagnose_analysis.py -v
+
+# Point at a different sysdiagnose bundle
+SYSDIAGNOSE_PATH=/path/to/bundle pytest tests/test_sysdiagnose_analysis.py -v
+
+# Protocol tests only
+pytest tests/test_bonjour_discovery.py tests/test_opendrop.py -v
+
+# Network conditioning (offline profile validation)
+pytest tests/test_network_conditioning.py -m "not requires_sudo" -v
+
+# Live network conditioning (requires brew install comcast + sudo)
+pytest tests/test_network_conditioning.py -v
+
+# Parallel execution
+pytest -n auto
+
+# With coverage
+pytest --cov=. --cov-report=html --cov-report=term
+
+# Full run against staging
+pytest --env=staging -v
+```
+
+---
+
+## Linting & Formatting
+
+```bash
+# Format
+black --line-length=100 .
+
+# Lint
+ruff check .
+ruff check . --fix        # auto-fix safe issues
+
+# Pre-commit (runs automatically on git commit after setup)
+pre-commit install        # one-time setup
+pre-commit run --all-files
+```
+
+---
+
+## Device Configuration
+
+Edit `device_config.yaml` to define your test rack:
+
+```yaml
+dut:
+  - id: "dut-iphone-01"
+    name: "iPhone 16 Pro (DUT)"
+    os_version: "18.4"
+    ip_address: "192.168.1.100"
+    enabled: true
+
+reference:
+  - id: "ref-mac-01"
+    name: "MacBook Pro M3 (Reference)"
+    ip_address: "192.168.1.200"
+    enabled: true
+```
+
+Access in tests via the `device_config` fixture:
+
+```python
+def test_airdrop_pair(device_config):
+    dut = device_config["dut"][0]
+    ref = device_config["reference"][0]
+    # dut["name"] → "iPhone 16 Pro (DUT)"
+```
+
+Override path: `DEVICE_CONFIG_FILE=/path/to/lab.yaml pytest ...`
+
+---
+
+## Sysdiagnose Analysis
+
+Validates real device behaviour from an iPhone AirDrop sysdiagnose:
+
+```bash
+# Uses bundled capture automatically
+pytest tests/test_sysdiagnose_analysis.py -v
+
+# Use your own capture
+SYSDIAGNOSE_PATH=/path/to/sysdiagnose_root pytest tests/test_sysdiagnose_analysis.py -v
+```
+
+```python
+from utils.sysdiagnose_parser import SysdiagnoseParser
+
+parser = SysdiagnoseParser("path/to/sysdiagnose/")
+awdl = parser.awdl()
+print(awdl.data_duration_ms)    # 5194 — real transfer occurred
+print(awdl.discoverable_mode)   # "Contacts Only"
+
+ble = parser.bluetooth()
+print(ble.power)                # "On"
+```
+
+See [`docs/SYSDIAGNOSE_ANALYSIS_GUIDE.md`](docs/SYSDIAGNOSE_ANALYSIS_GUIDE.md) for full guide.
+
+---
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/ENTERPRISE_FRAMEWORK_GUIDE.md`](docs/ENTERPRISE_FRAMEWORK_GUIDE.md) | Full framework architecture guide |
+| [`docs/SYSDIAGNOSE_ANALYSIS_GUIDE.md`](docs/SYSDIAGNOSE_ANALYSIS_GUIDE.md) | AirDrop sysdiagnose learnings from real capture |
+| [`docs/OPENDROP_TECHNOLOGY_ASSESSMENT.md`](docs/OPENDROP_TECHNOLOGY_ASSESSMENT.md) | OpenDrop status + pymobiledevice3/XCTest roadmap |
+| [`docs/TECH_DEBT.md`](docs/TECH_DEBT.md) | Technical debt register (all 12 items resolved) |
+| [`docs/FILE_INDEX.md`](docs/FILE_INDEX.md) | Complete file descriptions and stats |
+| [`QUICK_START.md`](QUICK_START.md) | Commands quick reference |
+
+---
+
+## Dependencies
+
+```
+pytest>=7.4.0           httpx[http2]>=0.24.0    cryptography>=41.0.0
+pytest-cov>=4.1.0       requests>=2.31.0         pyOpenSSL>=23.2.0
+pytest-xdist>=3.3.0     pyyaml>=6.0              certifi>=2023.7.0
+pytest-asyncio>=0.21.0  faker>=19.0.0            hypothesis>=6.82.0
+black>=24.0.0           ruff>=0.4.0              pre-commit>=3.7.0
+```
+
+---
+
+**Note:** All tests use publicly documented Apple protocols and APIs.
+No proprietary or confidential information is included.

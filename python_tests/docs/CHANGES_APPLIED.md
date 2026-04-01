@@ -1,7 +1,15 @@
-# Changes Applied to test_network_protocols.py
+# Changes Applied — Historical Record
 
-## Summary
-Fixed all 5 failing tests by applying minimal, targeted changes.
+> **Current state:** All fixes documented below have been applied and verified.
+> `test_network_protocols_fixed.py` has been deleted — the fixes are now part of
+> `test_network_protocols.py` directly.
+
+---
+
+## Original Fixes Applied to test_network_protocols.py
+
+### Summary
+Fixed all 5 originally failing tests by applying minimal, targeted changes.
 
 ---
 

@@ -12,39 +12,42 @@
 ## Framework Structure
 
 ```
-test_framework/
+python_tests/
 │
-├── conftest.py                 # Global fixtures & pytest configuration
-├── pytest.ini                  # Pytest settings
-├── requirements.txt            # Test dependencies
+├── conftest.py                       # 20 shared fixtures and hooks
+├── pytest.ini                        # Markers, strict mode, log config
+├── requirements.txt                  # All dependencies
+├── device_config.yaml                # DUT, reference & auxiliary device inventory
+├── ruff.toml                         # Linter configuration
+├── .pre-commit-config.yaml           # black + ruff + pre-commit hooks
 │
-├── tests/                      # All test files
-│   ├── unit/                   # Unit tests
-│   ├── integration/            # Integration tests
-│   ├── e2e/                    # End-to-end tests
-│   └── performance/            # Performance tests
+├── tests/
+│   ├── test_network_protocols.py     # TLS, DNS, HTTP/2, sockets, identity (29 tests)
+│   ├── test_bonjour_discovery.py     # mDNS, BLE, NameDrop, Handoff (16 tests)
+│   ├── test_opendrop.py              # OpenDrop protocol format (11 tests)
+│   ├── test_network_conditioning.py  # comcast + NLC conditioning (17 tests)
+│   ├── test_sysdiagnose_analysis.py  # Real AirDrop device capture (17 tests)
+│   ├── example_enterprise_test.py    # Framework reference patterns (19 tests)
+│   └── verify_test_dependencies.py  # Dependency health check
 │
-├── utils/                      # Test utilities
-│   ├── __init__.py
-│   ├── network_helpers.py      # Network testing utilities
-│   ├── test_data_factory.py   # Test data generation
-│   ├── assertions.py           # Custom assertions
-│   └── reporters.py            # Custom reporting
+├── utils/
+│   ├── network_helpers.py            # ConnectionHelper, SSLValidator, performance
+│   ├── test_data_factory.py          # ContactFactory, NetworkDataFactory
+│   ├── mdns_helpers.py               # MDNSHelper, RFC 6762 constants
+│   ├── opendrop_helpers.py           # OpenDrop plist, BLE, hash helpers
+│   ├── network_conditioner.py        # ComcastConditioner, NLCConditioner, PROFILES
+│   └── sysdiagnose_parser.py         # AWDLStatusParser, BluetoothStatusParser
 │
-├── fixtures/                   # Shared fixtures
-│   ├── __init__.py
-│   ├── network_fixtures.py     # Network-related fixtures
-│   └── data_fixtures.py        # Data-related fixtures
+├── docs/
+│   ├── ENTERPRISE_FRAMEWORK_GUIDE.md # ← this file
+│   ├── SYSDIAGNOSE_ANALYSIS_GUIDE.md
+│   ├── OPENDROP_TECHNOLOGY_ASSESSMENT.md
+│   ├── TECH_DEBT.md
+│   ├── FILE_INDEX.md
+│   └── FIX_GUIDE.md
 │
-├── config/                     # Configuration files
-│   ├── test_config.yaml        # Test configuration
-│   ├── staging_config.yaml     # Staging environment
-│   └── prod_config.yaml        # Production environment
-│
-└── reports/                    # Test reports & artifacts
-    ├── html/                   # HTML reports
-    ├── junit/                  # JUnit XML reports
-    └── coverage/               # Coverage reports
+└── reports/
+    └── pytest.log
 ```
 
 ---
@@ -52,12 +55,15 @@ test_framework/
 ## Core Components
 
 ### 1. conftest.py
-Central fixture and configuration hub. Already created with:
+Central fixture and configuration hub — 20 fixtures:
 - ✅ Session/function/module scoped fixtures
-- ✅ Custom pytest hooks
-- ✅ Command-line options (--offline, --env, etc.)
-- ✅ Automatic test result tracking
-- ✅ Network availability checks
+- ✅ Custom pytest hooks (configure, collection, runtest)
+- ✅ CLI options: `--offline`, `--no-sudo`, `--env`, `--test-log-level`, `--generate-report`
+- ✅ Env var fallbacks: `TEST_OFFLINE`, `TEST_NO_SUDO`, `TEST_ENV`, `TEST_LOG_LEVEL`
+- ✅ `device_config` — loads `device_config.yaml` (DUT/reference/auxiliary inventory)
+- ✅ `sysdiagnose_path` — resolves real device capture bundle (`SYSDIAGNOSE_PATH`)
+- ✅ `comcast_conditioner` / `nlc_conditioner` — network conditioning fixtures
+- ✅ Automatic test result tracking and session cleanup
 
 ### 2. pytest.ini
 Configuration file for pytest settings:
@@ -79,7 +85,7 @@ markers =
     integration: integration tests
 
 # Output options
-addopts = 
+addopts =
     -v
     --strict-markers
     --tb=short
@@ -94,7 +100,7 @@ testpaths = tests
 # Coverage options (if using pytest-cov)
 [coverage:run]
 source = .
-omit = 
+omit =
     */tests/*
     */venv/*
     */__pycache__/*
@@ -105,36 +111,35 @@ show_missing = True
 ```
 
 ### 3. requirements.txt
-Test dependencies:
+Test dependencies (see file for full list):
 
 ```txt
 # Core testing
 pytest>=7.4.0
 pytest-cov>=4.1.0
-pytest-html>=3.2.0
-pytest-xdist>=3.3.0  # Parallel test execution
-pytest-timeout>=2.1.0
-pytest-mock>=3.11.0
+pytest-xdist>=3.3.0       # Parallel test execution
+pytest-asyncio>=0.21.0
 
 # Network testing
-httpx>=0.24.0
 httpx[http2]>=0.24.0
 requests>=2.31.0
 
 # SSL/TLS
 certifi>=2023.7.0
 cryptography>=41.0.0
+pyOpenSSL>=23.2.0
 
 # Data generation
-faker>=19.0.0  # For generating realistic test data
+faker>=19.0.0
+hypothesis>=6.82.0
 
-# Reporting
-allure-pytest>=2.13.0  # Advanced reporting
-pytest-json-report>=1.5.0
+# Config
+pyyaml>=6.0
 
 # Code quality
-pytest-pylint>=0.19.0
-pytest-flake8>=1.1.0
+black>=24.0.0              # Formatter (line-length=100)
+ruff>=0.4.0                # Linter
+pre-commit>=3.7.0          # Git hooks
 ```
 
 ---
@@ -147,7 +152,7 @@ pytest-flake8>=1.1.0
 def test_ssl_connection(ssl_context, logger):
     """Test using shared SSL context fixture."""
     logger.info("Testing SSL connection")
-    
+
     with socket.create_connection(("apple.com", 443)) as sock:
         with ssl_context.wrap_socket(sock, server_hostname="apple.com") as ssock:
             assert ssock.version() in ["TLSv1.3", "TLSv1.2"]
@@ -162,10 +167,10 @@ from utils.test_data_factory import ContactFactory, NetworkDataFactory
 def test_contact_hashing():
     """Test contact hash generation with factory data."""
     contacts = ContactFactory.create_contacts(100)
-    
+
     hashes = {contact.get_email_hash() for contact in contacts}
     assert len(hashes) == 100, "Hash collision detected"
-    
+
     for contact in contacts:
         assert len(contact.get_truncated_hash()) == 2
 ```
@@ -178,7 +183,7 @@ from utils.network_helpers import ConnectionHelper, SSLValidator
 def test_connection_retry_logic():
     """Test connection with automatic retry."""
     helper = ConnectionHelper(retry_count=3, retry_delay=0.5)
-    
+
     success, sock, error = helper.connect_with_retry("apple.com", 443)
     assert success, f"Connection failed: {error}"
     sock.close()
@@ -197,7 +202,7 @@ from utils.network_helpers import NetworkPerformanceMonitor
 def test_network_performance():
     """Monitor network operation performance."""
     monitor = NetworkPerformanceMonitor()
-    
+
     # Measure DNS lookup
     result = monitor.measure_operation(
         "DNS Lookup",
@@ -205,7 +210,7 @@ def test_network_performance():
         "apple.com"
     )
     assert result['duration_ms'] < 500
-    
+
     # Get statistics
     stats = monitor.get_statistics()
     assert stats['avg_duration_ms'] < 1000
@@ -218,11 +223,11 @@ def test_api_endpoint(test_config, test_environment):
     """Test API with environment-specific configuration."""
     api_url = test_config['api_base_url']
     timeout = test_config['timeout']
-    
+
     if test_environment == "production":
         # Use production-specific assertions
         assert timeout >= 30
-    
+
     # Make request with configured settings
     response = make_request(api_url, timeout=timeout)
     assert response.status_code == 200
@@ -238,11 +243,11 @@ def test_api_endpoint(test_config, test_environment):
 ```python
 class TestSSLValidation:
     """Group related tests in classes."""
-    
+
     def test_tls_1_3_support(self, ssl_context):
         """Use descriptive names and docstrings."""
         pass
-    
+
     def test_cipher_strength(self, ssl_context):
         pass
 ```
@@ -293,7 +298,7 @@ def test_connection_error_handling():
     """Always test error cases."""
     with pytest.raises(ConnectionError) as exc_info:
         connect_to_invalid_host()
-    
+
     assert "Connection refused" in str(exc_info.value)
 ```
 
@@ -406,9 +411,9 @@ def test_file(tmp_path):
     """Create test file with automatic cleanup."""
     file_path = tmp_path / "test_data.txt"
     file_path.write_text("test content")
-    
+
     yield file_path
-    
+
     # Cleanup happens automatically after test
     # tmp_path is cleaned up by pytest
 ```
