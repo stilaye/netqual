@@ -50,6 +50,7 @@ python_tests/
 ├── conftest.py                 # Pytest fixtures & configuration
 ├── pytest.ini                  # Pytest settings
 ├── requirements.txt            # All dependencies
+├── device_config.yaml          # DUT, reference & auxiliary device inventory
 ├── QUICK_START.md             # Quick reference guide
 │
 ├── tests/                      # All test files
@@ -141,7 +142,8 @@ This test suite includes an enterprise-level pytest framework with:
 - `tcp_socket` / `udp_socket` - Sockets with auto-cleanup
 - `http_client` - HTTP client with auto-cleanup
 - `logger` - Configured logger
-- `test_config` - Environment-specific settings
+- `test_config` - Environment-specific settings (URLs, timeouts, retry counts)
+- `device_config` - DUT, reference, and auxiliary device inventory from `device_config.yaml`
 - `measure_time` - Performance timing
 - `comcast_conditioner` - System-wide 3G/4G/5G network simulation *(requires sudo)*
 - `nlc_conditioner` - Network Link Conditioner profile builder/validator

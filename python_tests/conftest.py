@@ -19,7 +19,7 @@ import socket
 import ssl
 import time
 from pathlib import Path
-from typing import Any, Dict, Generator
+from typing import Any, Dict, Generator, List
 
 import pytest
 
@@ -215,6 +215,62 @@ def logger() -> logging.Logger:
     logger = logging.getLogger("pytest_framework")
     logger.setLevel(logging.DEBUG)
     return logger
+
+
+@pytest.fixture(scope="session")
+def device_config() -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Load the device inventory (DUT, reference, auxiliary devices).
+
+    Resolution order (first match wins):
+      1. External YAML file at path set by DEVICE_CONFIG_FILE env var
+      2. device_config.yaml in the python_tests/ directory (default)
+      3. Empty inventory (all lists empty) — tests that need devices will skip
+
+    Returns:
+        Dict with keys 'dut', 'reference', 'auxiliary', each a list of device dicts.
+        Only enabled devices (enabled: true) are included.
+
+    Usage:
+        def test_airdrop(device_config):
+            dut = device_config["dut"][0]
+            ref = device_config["reference"][0]
+            pytest.skip(f"Would test {dut['name']} ↔ {ref['name']}")
+
+    Example:
+        device_config["dut"]       # list of DUT devices
+        device_config["reference"] # list of reference devices
+        device_config["auxiliary"] # list of auxiliary infrastructure devices
+    """
+    try:
+        import yaml
+    except ImportError:
+        logging.warning("PyYAML not installed — device_config fixture returning empty inventory")
+        return {"dut": [], "reference": [], "auxiliary": []}
+
+    config_path = (
+        Path(os.getenv("DEVICE_CONFIG_FILE", "")) or Path(__file__).parent / "device_config.yaml"
+    )
+    if not config_path.is_file():
+        logging.warning(
+            "device_config.yaml not found at %s — returning empty inventory", config_path
+        )
+        return {"dut": [], "reference": [], "auxiliary": []}
+
+    try:
+        raw = yaml.safe_load(config_path.read_text())
+    except Exception as exc:
+        logging.warning("Could not load device_config.yaml: %s", exc)
+        return {"dut": [], "reference": [], "auxiliary": []}
+
+    def enabled(devices: List[Dict]) -> List[Dict]:
+        return [d for d in (devices or []) if d.get("enabled", True)]
+
+    return {
+        "dut": enabled(raw.get("dut", [])),
+        "reference": enabled(raw.get("reference", [])),
+        "auxiliary": enabled(raw.get("auxiliary", [])),
+    }
 
 
 # ============================================================

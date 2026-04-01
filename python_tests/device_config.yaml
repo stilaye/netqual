@@ -1,0 +1,99 @@
+# device_config.yaml
+# ===================
+# DUT, reference, and auxiliary device inventory for the pytest framework.
+#
+# Loaded automatically by the `device_config` fixture in conftest.py.
+# Override at runtime:
+#   DEVICE_CONFIG_FILE=/path/to/custom.yaml pytest ...
+#
+# Roles:
+#   dut        — Device Under Test (runs the build being validated)
+#   reference  — Known-good device used as the other end of a protocol pair
+#   auxiliary  — Supporting infrastructure (network conditioner, packet capture host, etc.)
+#
+# Set enabled: false to skip a device without removing its entry.
+
+# ------------------------------------------------------------
+# DUT — Device Under Test
+# The device running the build under test.
+# ------------------------------------------------------------
+dut:
+  - id: "dut-iphone-01"
+    name: "iPhone 16 Pro (DUT)"
+    type: "iPhone"
+    model: "iPhone16,2"
+    os_version: "18.4"
+    udid: "00008030-001A2D3E4F50001E"   # xcrun devicectl list devices
+    ip_address: "192.168.1.100"
+    bluetooth_mac: "AA:BB:CC:DD:EE:01"
+    enabled: true
+    location: "desk"                     # desk | rf_chamber_1 | rf_chamber_2
+
+  - id: "dut-iphone-02"
+    name: "iPhone 15 (DUT)"
+    type: "iPhone"
+    model: "iPhone15,2"
+    os_version: "18.4"
+    udid: "00008030-002B3C4D5E60002F"
+    ip_address: "192.168.1.101"
+    bluetooth_mac: "AA:BB:CC:DD:EE:02"
+    enabled: false                       # Set true when second DUT is available
+    location: "desk"
+
+# ------------------------------------------------------------
+# Reference Devices
+# Known-good devices used as the other side of protocol pairs.
+# These run the latest stable release, not the build under test.
+# ------------------------------------------------------------
+reference:
+  - id: "ref-mac-01"
+    name: "MacBook Pro M3 (Reference)"
+    type: "Mac"
+    model: "Mac15,3"
+    os_version: "15.4"
+    ip_address: "192.168.1.200"
+    bluetooth_mac: "AA:BB:CC:DD:EE:10"
+    enabled: true
+    location: "desk"
+
+  - id: "ref-ipad-01"
+    name: "iPad Pro M4 (Reference)"
+    type: "iPad"
+    model: "iPad16,3"
+    os_version: "18.4"
+    udid: "00008030-003C4D5E6F70003G"
+    ip_address: "192.168.1.201"
+    bluetooth_mac: "AA:BB:CC:DD:EE:11"
+    enabled: true
+    location: "desk"
+
+  - id: "ref-watch-01"
+    name: "Apple Watch Ultra 2 (Reference)"
+    type: "Watch"
+    model: "Watch7,5"
+    os_version: "11.4"
+    bluetooth_mac: "AA:BB:CC:DD:EE:20"
+    enabled: false                       # Enable when Watch tests are active
+    location: "desk"
+
+# ------------------------------------------------------------
+# Auxiliary Devices
+# Supporting infrastructure — not running Apple protocols directly.
+# ------------------------------------------------------------
+auxiliary:
+  - id: "aux-mac-capture"
+    name: "Packet Capture Host"
+    type: "Mac"
+    role: "packet_capture"              # Runs tshark / Wireshark
+    ip_address: "192.168.1.250"
+    interface: "en0"
+    enabled: true
+    notes: "Runs tshark for BLE/Wi-Fi/mDNS capture during protocol tests"
+
+  - id: "aux-mac-conditioner"
+    name: "Network Conditioner Host"
+    type: "Mac"
+    role: "network_conditioner"         # Runs comcast / NLC profiles
+    ip_address: "192.168.1.251"
+    enabled: true
+    notes: "Apply 3G/4G/5G profiles via comcast CLI; requires sudo"
